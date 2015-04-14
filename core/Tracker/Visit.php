@@ -584,14 +584,18 @@ class Visit implements VisitInterface
 
     protected function getAllVisitDimensions()
     {
-        $dimensions = VisitDimension::getAllDimensions();
+        static $dimensions;
 
-        $dimensionNames = array();
-        foreach($dimensions as $dimension) {
-            $dimensionNames[] = $dimension->getColumnName();
+        if (is_null($dimensions)) {
+            $dimensions = VisitDimension::getAllDimensions();
+
+            $dimensionNames = array();
+            foreach($dimensions as $dimension) {
+                $dimensionNames[] = $dimension->getColumnName();
+            }
+
+            Common::printDebug("Following dimensions have been collected from plugins: " . implode(", ", $dimensionNames));
         }
-
-        Common::printDebug("Following dimensions have been collected from plugins: " . implode(", ", $dimensionNames));
 
         return $dimensions;
     }

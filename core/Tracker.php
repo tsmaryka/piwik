@@ -93,6 +93,8 @@ class Tracker
     public function main(Handler $handler, RequestSet $requestSet)
     {
         try {
+            $this->loadTrackerPlugins();
+
             $this->init();
             $handler->init($this, $requestSet);
             $this->track($handler, $requestSet);
@@ -132,8 +134,6 @@ class Tracker
         if ($request->isEmptyRequest()) {
             Common::printDebug("The request is empty");
         } else {
-            $this->loadTrackerPlugins();
-
             Common::printDebug("Current datetime: " . date("Y-m-d H:i:s", $request->getCurrentTimestamp()));
 
             $visit = Visit\Factory::make();

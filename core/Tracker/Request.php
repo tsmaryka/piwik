@@ -27,6 +27,9 @@ use Piwik\Tracker;
  */
 class Request
 {
+    private static $idSitesCache = array();
+    private $cdtCache;
+
     /**
      * @var array
      */
@@ -104,17 +107,34 @@ class Request
      */
     protected function authenticateTrackingApi($tokenAuth)
     {
+        static $authenticatedCache = array();
+
         $shouldAuthenticate = TrackerConfig::getConfigValue('tracking_requests_require_authentication');
 
         if ($shouldAuthenticate) {
+
+            try {
+                $idSite = $this->getIdSite();
+            } catch (Exception $e) {
+                $this->isAuthenticated = false;
+                return;
+            }
 
             if (empty($tokenAuth)) {
                 $tokenAuth = Common::getRequestVar('token_auth', false, 'string', $this->params);
             }
 
+            if (isset($authenticatedCache[$idSite][$tokenAuth])) {
+                Common::printDebug("token_auth is authenticated in cache!");
+                $this->isAuthenticated = true;
+                return;
+            } elseif (!array_key_exists($idSite, $authenticatedCache)) {
+                $authenticatedCache[$idSite] = array();
+            }
+
             try {
-                $idSite = $this->getIdSite();
                 $this->isAuthenticated = self::authenticateSuperUserOrAdmin($tokenAuth, $idSite);
+                $authenticatedCache[$idSite][$tokenAuth] = $this->isAuthenticated;
             } catch (Exception $e) {
                 $this->isAuthenticated = false;
             }
@@ -346,6 +366,11 @@ class Request
         return $value;
     }
 
+    private function hasParam($name)
+    {
+        return array_key_exists($name, $this->params);
+    }
+
     public function getParams()
     {
         return $this->params;
@@ -353,10 +378,12 @@ class Request
 
     public function getCurrentTimestamp()
     {
-        $cdt = $this->getCustomTimestamp();
+        if (!isset($this->cdtCache)) {
+            $this->cdtCache = $this->getCustomTimestamp();
+        }
 
-        if (!empty($cdt)) {
-            return $cdt;
+        if (!empty($this->cdtCache)) {
+            return $this->cdtCache;
         }
 
         return $this->timestamp;
@@ -369,6 +396,10 @@ class Request
 
     protected function getCustomTimestamp()
     {
+        if (!$this->hasParam('cdt')) {
+            return false;
+        }
+
         $cdt = $this->getParam('cdt');
 
         if (empty($cdt)) {
@@ -420,6 +451,12 @@ class Request
     {
         $idSite = Common::getRequestVar('idsite', 0, 'int', $this->params);
 
+        if (array_key_exists($idSite, self::$idSitesCache)) {
+            return self::$idSitesCache[$idSite];
+        }
+
+        $oldIdSite = $idSite;
+
         /**
          * Triggered when obtaining the ID of the site we are tracking a visit for.
          *
@@ -437,6 +474,8 @@ class Request
         if ($idSite <= 0) {
             throw new UnexpectedWebsiteFoundException('Invalid idSite: \'' . $idSite . '\'');
         }
+
+        self::$idSitesCache[$oldIdSite] = $idSite;
 
         return $idSite;
     }
