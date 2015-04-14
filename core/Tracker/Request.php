@@ -355,20 +355,21 @@ class Request
             'c_i'          => array('', 'string'),
         );
 
+        if (isset($this->paramsCache[$name])) {
+            return $this->paramsCache[$name];
+        }
+
         if (!isset($supportedParams[$name])) {
             throw new Exception("Requested parameter $name is not a known Tracking API Parameter.");
         }
 
-        if (!array_key_exists($name, $this->paramsCache)) {
-            $paramDefaultValue = $supportedParams[$name][0];
-            $paramType = $supportedParams[$name][1];
+        $paramDefaultValue = $supportedParams[$name][0];
+        $paramType = $supportedParams[$name][1];
 
-            if (!$this->hasParam($name)) {
-                $this->paramsCache[$name] = $paramDefaultValue;
-            } else {
-                $this->paramsCache[$name] = Common::getRequestVar($name, $paramDefaultValue, $paramType, $this->params);
-            }
-
+        if ($this->hasParam($name)) {
+            $this->paramsCache[$name] = Common::getRequestVar($name, $paramDefaultValue, $paramType, $this->params);
+        } else {
+            $this->paramsCache[$name] = $paramDefaultValue;
         }
 
         return $this->paramsCache[$name];
@@ -376,7 +377,7 @@ class Request
 
     private function hasParam($name)
     {
-        return array_key_exists($name, $this->params);
+        return isset($this->params[$name]);
     }
 
     public function getParams()

@@ -343,7 +343,6 @@ abstract class Base extends VisitDimension
         $type    = $visitor->getVisitorColumn('referer_type');
         $name    = $visitor->getVisitorColumn('referer_name');
         $keyword = $visitor->getVisitorColumn('referer_keyword');
-        $time    = $visitor->getVisitorColumn('visit_first_action_time');
 
         // 0) In some (unknown!?) cases the campaign is not found in the attribution cookie, but the URL ref was found.
         //    In this case we look up if the current visit is credited to a campaign and will credit this campaign rather than the URL ref (since campaigns have higher priority)
@@ -357,7 +356,6 @@ abstract class Base extends VisitDimension
             $type    = Common::REFERRER_TYPE_CAMPAIGN;
             $name    = $referrerCampaignName;
             $keyword = $referrerCampaignKeyword;
-            $time    = $referrerTimestamp;
         } // 2) Referrer URL parsing
         elseif (!empty($referrerUrl)) {
 
@@ -369,7 +367,6 @@ abstract class Base extends VisitDimension
                 $type    = $referrer['referer_type'];
                 $name    = $referrer['referer_name'];
                 $keyword = $referrer['referer_keyword'];
-                $time    = $referrerTimestamp;
             }
         }
 
