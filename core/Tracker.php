@@ -93,8 +93,6 @@ class Tracker
     public function main(Handler $handler, RequestSet $requestSet)
     {
         try {
-            $this->loadTrackerPlugins();
-
             $this->init();
             $handler->init($this, $requestSet);
             $this->track($handler, $requestSet);
@@ -168,6 +166,13 @@ class Tracker
             }
 
             PluginManager::getInstance()->loadCorePluginsDuringTracker();
+        }
+    }
+
+    public static function restoreTrackerPlugins()
+    {
+        if (SettingsServer::isTrackerApiRequest() && Tracker::$initTrackerMode) {
+            Plugin\Manager::getInstance()->loadTrackerPlugins();
         }
     }
 

@@ -27,8 +27,9 @@ use Piwik\Tracker;
  */
 class Request
 {
-    private static $idSitesCache = array();
     private $cdtCache;
+    private $idSiteCache;
+    private $paramsCache = array();
 
     /**
      * @var array
@@ -126,7 +127,7 @@ class Request
 
             if (isset($authenticatedCache[$idSite][$tokenAuth])) {
                 Common::printDebug("token_auth is authenticated in cache!");
-                $this->isAuthenticated = true;
+                $this->isAuthenticated = $authenticatedCache[$idSite][$tokenAuth];
                 return;
             } elseif (!array_key_exists($idSite, $authenticatedCache)) {
                 $authenticatedCache[$idSite] = array();
@@ -314,11 +315,11 @@ class Request
             // other
             'bots'         => array(0, 'int'),
             'dp'           => array(0, 'int'),
-            'rec'          => array(false, 'int'),
+            'rec'          => array(0, 'int'),
             'new_visit'    => array(0, 'int'),
 
             // Ecommerce
-            'ec_id'        => array(false, 'string'),
+            'ec_id'        => array('', 'string'),
             'ec_st'        => array(false, 'float'),
             'ec_tx'        => array(false, 'float'),
             'ec_sh'        => array(false, 'float'),
@@ -326,24 +327,24 @@ class Request
             'ec_items'     => array('', 'json'),
 
             // Events
-            'e_c'          => array(false, 'string'),
-            'e_a'          => array(false, 'string'),
-            'e_n'          => array(false, 'string'),
+            'e_c'          => array('', 'string'),
+            'e_a'          => array('', 'string'),
+            'e_n'          => array('', 'string'),
             'e_v'          => array(false, 'float'),
 
             // some visitor attributes can be overwritten
-            'cip'          => array(false, 'string'),
-            'cdt'          => array(false, 'string'),
-            'cid'          => array(false, 'string'),
-            'uid'          => array(false, 'string'),
+            'cip'          => array('', 'string'),
+            'cdt'          => array('', 'string'),
+            'cid'          => array('', 'string'),
+            'uid'          => array('', 'string'),
 
             // Actions / pages
-            'cs'           => array(false, 'string'),
+            'cs'           => array('', 'string'),
             'download'     => array('', 'string'),
             'link'         => array('', 'string'),
             'action_name'  => array('', 'string'),
             'search'       => array('', 'string'),
-            'search_cat'   => array(false, 'string'),
+            'search_cat'   => array('', 'string'),
             'search_count' => array(-1, 'int'),
             'gt_ms'        => array(-1, 'int'),
 
@@ -358,12 +359,19 @@ class Request
             throw new Exception("Requested parameter $name is not a known Tracking API Parameter.");
         }
 
-        $paramDefaultValue = $supportedParams[$name][0];
-        $paramType = $supportedParams[$name][1];
+        if (!array_key_exists($name, $this->paramsCache)) {
+            $paramDefaultValue = $supportedParams[$name][0];
+            $paramType = $supportedParams[$name][1];
 
-        $value = Common::getRequestVar($name, $paramDefaultValue, $paramType, $this->params);
+            if (!$this->hasParam($name)) {
+                $this->paramsCache[$name] = $paramDefaultValue;
+            } else {
+                $this->paramsCache[$name] = Common::getRequestVar($name, $paramDefaultValue, $paramType, $this->params);
+            }
 
-        return $value;
+        }
+
+        return $this->paramsCache[$name];
     }
 
     private function hasParam($name)
@@ -449,13 +457,11 @@ class Request
 
     public function getIdSite()
     {
-        $idSite = Common::getRequestVar('idsite', 0, 'int', $this->params);
-
-        if (array_key_exists($idSite, self::$idSitesCache)) {
-            return self::$idSitesCache[$idSite];
+        if (isset($this->idSiteCache)) {
+            return $this->idSiteCache;
         }
 
-        $oldIdSite = $idSite;
+        $idSite = Common::getRequestVar('idsite', 0, 'int', $this->params);
 
         /**
          * Triggered when obtaining the ID of the site we are tracking a visit for.
@@ -475,7 +481,7 @@ class Request
             throw new UnexpectedWebsiteFoundException('Invalid idSite: \'' . $idSite . '\'');
         }
 
-        self::$idSitesCache[$oldIdSite] = $idSite;
+        $this->idSiteCache = $idSite;
 
         return $idSite;
     }
