@@ -70,7 +70,7 @@ abstract class Base extends VisitDimension
     {
         $cacheKey = $referrerUrl . $currentUrl . $idSite;
 
-        if (array_key_exists($cacheKey, self::$cachedReferrer)) {
+        if (isset(self::$cachedReferrer[$cacheKey])) {
             return self::$cachedReferrer[$cacheKey];
         }
 
@@ -108,9 +108,7 @@ abstract class Base extends VisitDimension
             }
         }
 
-        if (!empty($this->referrerHost)
-            && !$referrerDetected
-        ) {
+        if (!$referrerDetected && !empty($this->referrerHost)) {
             $this->typeReferrerAnalyzed = Common::REFERRER_TYPE_WEBSITE;
             $this->nameReferrerAnalyzed = Common::mb_strtolower($this->referrerHost);
         }
