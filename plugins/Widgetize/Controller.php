@@ -48,6 +48,7 @@ class Controller extends \Piwik\Plugin\Controller
         $this->setGeneralVariablesView($view);
         $view->setXFrameOptions('allow');
         $view->content = FrontController::getInstance()->fetchDispatch($controllerName, $actionName);
+		$view->controllerName = $controllerName;
 
         return $view->render();
     }
