@@ -297,7 +297,7 @@ class ScheduledReports extends \Piwik\Plugin
         }
 
         $periods = self::getPeriodToFrequencyAsAdjective();
-        $message = Piwik::translate('ScheduledReports_EmailHello');
+        $message = "";
         $subject = Piwik::translate('General_Report') . ' ' . $reportTitle . " - " . $prettyDate;
 
         $mail = new Mail();
@@ -320,13 +320,13 @@ class ScheduledReports extends \Piwik\Plugin
 
                 // Needed when using images as attachment with cid
                 $mail->setType(Zend_Mime::MULTIPART_RELATED);
-                $message .= "<br/>" . Piwik::translate('ScheduledReports_PleaseFindBelow', array($periods[$report['period']], $reportTitle));
+                $message .= "";
 
                 if ($displaySegmentInfo) {
                     $message .= " " . $segmentInfo;
                 }
 
-                $mail->setBodyHtml($message . "<br/><br/>" . $contents);
+                $mail->setBodyHtml($message . $contents);
                 break;
 
             case 'csv':
