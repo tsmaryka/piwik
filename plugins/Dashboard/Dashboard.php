@@ -60,13 +60,6 @@ class Dashboard extends \Piwik\Plugin
         $defaultLayout = $this->getLayoutForUser('', 1);
 
         if (empty($defaultLayout)) {
-            if (Piwik::hasUserSuperUserAccess()) {
-                $topWidget = '{"uniqueId":"widgetCoreHomegetDonateForm",'
-                    . '"parameters":{"module":"CoreHome","action":"getDonateForm"}},';
-            } else {
-                $topWidget = '{"uniqueId":"widgetCoreHomegetPromoVideo",'
-                    . '"parameters":{"module":"CoreHome","action":"getPromoVideo"}},';
-            }
 
             $defaultLayout = '[
                 [
@@ -75,7 +68,6 @@ class Dashboard extends \Piwik\Plugin
                     {"uniqueId":"widgetVisitorInterestgetNumberOfVisitsPerVisitDuration","parameters":{"module":"VisitorInterest","action":"getNumberOfVisitsPerVisitDuration"}}
                 ],
                 [
-                    ' . $topWidget . '
                     {"uniqueId":"widgetReferrersgetKeywords","parameters":{"module":"Referrers","action":"getKeywords"}},
                     {"uniqueId":"widgetReferrersgetWebsites","parameters":{"module":"Referrers","action":"getWebsites"}}
                 ],
@@ -83,8 +75,7 @@ class Dashboard extends \Piwik\Plugin
                     {"uniqueId":"widgetUserCountryMapvisitorMap","parameters":{"module":"UserCountryMap","action":"visitorMap"}},
                     {"uniqueId":"widgetDevicesDetectiongetBrowsers","parameters":{"module":"DevicesDetection","action":"getBrowsers"}},
                     {"uniqueId":"widgetReferrersgetSearchEngines","parameters":{"module":"Referrers","action":"getSearchEngines"}},
-                    {"uniqueId":"widgetVisitTimegetVisitInformationPerServerTime","parameters":{"module":"VisitTime","action":"getVisitInformationPerServerTime"}},
-                    {"uniqueId":"widgetExampleRssWidgetrssPiwik","parameters":{"module":"ExampleRssWidget","action":"rssPiwik"}}
+                    {"uniqueId":"widgetVisitTimegetVisitInformationPerServerTime","parameters":{"module":"VisitTime","action":"getVisitInformationPerServerTime"}}
                 ]
             ]';
         }
