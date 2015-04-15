@@ -1,3 +1,4 @@
+{% if hasSomeAdminAccess %}
 <div id="topRightBar">
 
     {% macro topMenuItem(label, menu, currentModule, currentAction) %}
@@ -35,3 +36,4 @@
     {% endfor %}
 
 </div>
+{% endif %}
