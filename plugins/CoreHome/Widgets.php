@@ -32,7 +32,7 @@ class Widgets extends \Piwik\Plugin\Widgets
 		/* removing example widgets
         * $this->addWidget('CoreHome_SupportPiwik', 'getDonateForm');
         * $this->addWidget('Installation_Welcome', 'getPromoVideo');
-		* /
+		*/
 	}
 
     /**
