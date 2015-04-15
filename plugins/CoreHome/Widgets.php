@@ -29,9 +29,11 @@ class Widgets extends \Piwik\Plugin\Widgets
 
     protected function init()
     {
-        $this->addWidget('CoreHome_SupportPiwik', 'getDonateForm');
-        $this->addWidget('Installation_Welcome', 'getPromoVideo');
-    }
+		/* removing example widgets
+        * $this->addWidget('CoreHome_SupportPiwik', 'getDonateForm');
+        * $this->addWidget('Installation_Welcome', 'getPromoVideo');
+		* /
+	}
 
     /**
      * Renders and echo's the in-app donate form w/ slider.
