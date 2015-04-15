@@ -6,7 +6,9 @@
         {% include "@CoreHome/_periodSelect.twig" %}
         {{ postEvent("Template.nextToCalendar") }}
         {% render dashboardSettingsControl %}
-        {% include "@CoreHome/_headerMessage.twig" %}
+        {# removing header message - trevor
+			{% include "@CoreHome/_headerMessage.twig" %}
+		#}
         {{ ajax.requestErrorDiv(emailSuperUser|default('')) }}
     </div>
 
