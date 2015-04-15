@@ -9,6 +9,7 @@
         "All": "All",
         "AllowPiwikArchivingToTriggerBrowser": "Allow Piwik archiving to trigger when reports are viewed from the browser",
         "AllWebsitesDashboard": "All Websites dashboard",
+		"StatsForTheLast7Days": "stats for the last 7 days",
         "And": "and",
         "API": "API",
         "ApplyDateRange": "Apply Date Range",
