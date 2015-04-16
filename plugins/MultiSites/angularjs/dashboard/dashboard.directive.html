@@ -3,13 +3,12 @@
         help-url="http://piwik.org/docs/manage-websites/#all-websites-dashboard"
         feature-name="{{ 'General_AllWebsitesDashboard'|translate }}">
         {{ 'General_AllWebsitesDashboard'|translate }}
-		{{ dateSparkline == "last7" && "stats for the last 7 days" || "" }}
-        <span class='smallTitle'
+    <span class='smallTitle'
               title="{{ 'General_EvolutionSummaryGeneric'|translate:('General_NVisits'|translate:model.totalVisits):date:model.lastVisits:model.lastVisitsDate:(model.totalVisits|evolution:model.lastVisits)}}"
-              ng-bind-html="'General_TotalVisitsPageviews' | translate:('<strong>'+model.totalVisits+'</strong>'):('<strong>'+model.totalActions+'</strong>'):('<strong>' + model.totalRevenue + '</strong>')">
-        </span>
+              ng-bind-html="'General_TotalVisitsPageviewsRevenue' | translate:('<strong>'+model.totalVisits+'</strong>'):('<strong>'+model.totalActions+'</strong>')">
+        </span>	
     </h2>
-
+    <h3>{{ dateSparkline == "last7" && "Stats for the last 7 days" || "" }}</h3>
     <table id="mt" class="dataTable" cellspacing="0">
         <thead>
         <tr>
