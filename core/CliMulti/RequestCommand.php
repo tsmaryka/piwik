@@ -8,16 +8,20 @@
 
 namespace Piwik\CliMulti;
 
+use Piwik\Application\Environment;
+use Piwik\Access;
 use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Db;
 use Piwik\Log;
 use Piwik\Option;
 use Piwik\Plugin\ConsoleCommand;
+use Piwik\Tests\Framework\Mock\TestConfig;
 use Piwik\Url;
 use Piwik\UrlHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
@@ -25,11 +29,17 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class RequestCommand extends ConsoleCommand
 {
+    /**
+     * @var Environment
+     */
+    private $environment;
+
     protected function configure()
     {
         $this->setName('climulti:request');
         $this->setDescription('Parses and executes the given query. See Piwik\CliMulti. Intended only for system usage.');
         $this->addArgument('url-query', InputArgument::REQUIRED, 'Piwik URL query string, for instance: "module=API&method=API.getPiwikVersion&token_auth=123456789"');
+        $this->addOption('superuser', null, InputOption::VALUE_NONE, 'If supplied, runs the code as superuser.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -39,7 +49,7 @@ class RequestCommand extends ConsoleCommand
         $this->initHostAndQueryString($input);
 
         if ($this->isTestModeEnabled()) {
-            Config::getInstance()->setTestEnvironment();
+            Config::setSingletonInstance(new TestConfig());
             $indexFile = '/tests/PHPUnit/proxy/';
 
             $this->resetDatabase();
@@ -57,6 +67,10 @@ class RequestCommand extends ConsoleCommand
             }
 
             $process->startProcess();
+        }
+
+        if ($input->getOption('superuser')) {
+            Access::getInstance()->setSuperUserAccess(true);
         }
 
         require_once PIWIK_INCLUDE_PATH . $indexFile;
@@ -82,7 +96,7 @@ class RequestCommand extends ConsoleCommand
         Url::setHost($hostname);
 
         $query = $input->getArgument('url-query');
-        $query = UrlHelper::getArrayFromQueryString($query);
+        $query = UrlHelper::getArrayFromQueryString($query); // NOTE: this method can create the StaticContainer now
         foreach ($query as $name => $value) {
             $_GET[$name] = $value;
         }
@@ -96,9 +110,11 @@ class RequestCommand extends ConsoleCommand
      */
     private function recreateContainerWithWebEnvironment()
     {
-        StaticContainer::setEnvironment(null);
         StaticContainer::clearContainer();
         Log::unsetInstance();
+
+        $this->environment = new Environment(null);
+        $this->environment->init();
     }
 
     private function resetDatabase()

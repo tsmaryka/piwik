@@ -9,6 +9,7 @@
 namespace Piwik\Plugins\Goals;
 
 use Exception;
+use Piwik\API\Request;
 use Piwik\Archive;
 use Piwik\CacheId;
 use Piwik\Cache as PiwikCache;
@@ -18,11 +19,14 @@ use Piwik\Db;
 use Piwik\Metrics;
 use Piwik\Piwik;
 use Piwik\Plugin\Report;
+use Piwik\Plugins\API\DataTable\MergeDataTables;
 use Piwik\Plugins\CoreHome\Columns\Metrics\ConversionRate;
 use Piwik\Plugins\Goals\Columns\Metrics\AverageOrderRevenue;
+use Piwik\Segment\SegmentExpression;
 use Piwik\Site;
 use Piwik\Tracker\Cache;
 use Piwik\Tracker\GoalManager;
+use Piwik\Plugins\VisitFrequency\API as VisitFrequencyAPI;
 
 /**
  * Goals API lets you Manage existing goals, via "updateGoal" and "deleteGoal", create new Goals via "addGoal",
@@ -327,7 +331,7 @@ class API extends \Piwik\Plugin\API
     }
 
     /**
-     * Returns Goals data
+     * Returns Goals data.
      *
      * @param int $idSite
      * @param string $period
@@ -340,6 +344,56 @@ class API extends \Piwik\Plugin\API
     public function get($idSite, $period, $date, $segment = false, $idGoal = false, $columns = array())
     {
         Piwik::checkUserHasViewAccess($idSite);
+
+        /** @var DataTable|DataTable\Map $table */
+        $table = null;
+
+        $segments = array(
+            '' => false,
+            '_new_visit' => 'visitorType%3D%3Dnew', // visitorType==new
+            '_returning_visit' => VisitFrequencyAPI::RETURNING_VISITOR_SEGMENT
+        );
+
+        foreach ($segments as $appendToMetricName => $predefinedSegment) {
+            $segmentToUse = $this->appendSegment($predefinedSegment, $segment);
+
+            /** @var DataTable|DataTable\Map $tableSegmented */
+            $tableSegmented = Request::processRequest('Goals.getMetrics', array(
+                'segment' => $segmentToUse,
+                'idSite'  => $idSite,
+                'period'  => $period,
+                'date'    => $date,
+                'idGoal'  => $idGoal,
+                'columns' => $columns,
+                'serialize' => '0',
+                'format_metrics' => 'bc'
+            ));
+
+            $tableSegmented->filter('Piwik\Plugins\Goals\DataTable\Filter\AppendNameToColumnNames',
+                                    array($appendToMetricName));
+
+            if (!isset($table)) {
+                $table = $tableSegmented;
+            } else {
+                $merger = new MergeDataTables();
+                $merger->mergeDataTables($table, $tableSegmented);
+            }
+        }
+
+        return $table;
+    }
+
+    /**
+     * Similar to {@link get()} but does not return any metrics for new and returning visitors. It won't apply
+     * any segment by default. This method is deprecated from the API as it is only there to make the implementation of
+     * the actual {@link get()} method easy.
+     *
+     * @deprecated
+     * @internal
+     */
+    public function getMetrics($idSite, $period, $date, $segment = false, $idGoal = false, $columns = array())
+    {
+        Piwik::checkUserHasViewAccess($idSite);
         $archive = Archive::build($idSite, $period, $date, $segment);
 
         // Mapping string idGoal to internal ID
@@ -347,9 +401,20 @@ class API extends \Piwik\Plugin\API
         $isEcommerceGoal = $idGoal === GoalManager::IDGOAL_ORDER || $idGoal === GoalManager::IDGOAL_CART;
 
         $allMetrics = Goals::getGoalColumns($idGoal);
-        $requestedColumns = Piwik::getArrayFromApiParameter($columns);
+        $columnsToShow = Piwik::getArrayFromApiParameter($columns);
+        $requestedColumns = $columnsToShow;
 
-        $report = Report::factory("Goals", "get");
+        $shouldAddAverageOrderRevenue = (in_array('avg_order_revenue', $requestedColumns) || empty($requestedColumns)) && $isEcommerceGoal;
+
+        if ($shouldAddAverageOrderRevenue && !empty($requestedColumns)) {
+
+            $avgOrder = new AverageOrderRevenue();
+            $metricsToAdd = $avgOrder->getDependentMetrics();
+
+            $requestedColumns = array_unique(array_merge($requestedColumns, $metricsToAdd));
+        }
+
+        $report = Report::factory('Goals', 'getMetrics');
         $columnsToGet = $report->getMetricsRequiredForReport($allMetrics, $requestedColumns);
 
         $inDbMetricNames = array_map(function ($name) use ($idGoal) {
@@ -367,28 +432,45 @@ class API extends \Piwik\Plugin\API
         // TODO: this should be in Goals/Get.php but it depends on idGoal parameter which isn't always in _GET (ie,
         //       it's not in ProcessedReport.php). more refactoring must be done to report class before this can be
         //       corrected.
-        if ((in_array('avg_order_revenue', $requestedColumns)
-             || empty($requestedColumns))
-            && $isEcommerceGoal
-        ) {
+        if ($shouldAddAverageOrderRevenue) {
             $dataTable->filter(function (DataTable $table) {
                 $extraProcessedMetrics = $table->getMetadata(DataTable::EXTRA_PROCESSED_METRICS_METADATA_NAME);
+                if (empty($extraProcessedMetrics)) {
+                    $extraProcessedMetrics = array();
+                }
                 $extraProcessedMetrics[] = new AverageOrderRevenue();
                 $table->setMetadata(DataTable::EXTRA_PROCESSED_METRICS_METADATA_NAME, $extraProcessedMetrics);
             });
         }
 
         // remove temporary metrics that were not explicitly requested
-        $allColumns = $allMetrics;
-        $allColumns[] = 'conversion_rate';
-        if ($isEcommerceGoal) {
-            $allColumns[] = 'avg_order_revenue';
+        if (empty($columnsToShow)) {
+            $columnsToShow = $allMetrics;
+            $columnsToShow[] = 'conversion_rate';
+            if ($isEcommerceGoal) {
+                $columnsToShow[] = 'avg_order_revenue';
+            }
         }
 
-        $columnsToShow = $requestedColumns ?: $allColumns;
         $dataTable->queueFilter('ColumnDelete', array($columnsToRemove = array(), $columnsToShow));
 
         return $dataTable;
+    }
+
+    protected function appendSegment($segment, $segmentToAppend)
+    {
+        if (empty($segment)) {
+            return $segmentToAppend;
+        }
+
+        if (empty($segmentToAppend)) {
+            return $segment;
+        }
+
+        $segment .= urlencode(SegmentExpression::AND_DELIMITER);
+        $segment .= $segmentToAppend;
+
+        return $segment;
     }
 
     protected function getNumeric($idSite, $period, $date, $segment, $toFetch)

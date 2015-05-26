@@ -47,13 +47,15 @@
         "piwik/network": "~0.1.0",
         "piwik/cache": "~0.2.5",
         "piwik/ini": "~1.0,>=1.0.3",
-        "mnapoli/php-di": "5.0.x-dev",
+        "mnapoli/php-di": "5.0.0-beta1",
         "psr/log": "~1.0",
         "monolog/monolog": "~1.11",
         "symfony/monolog-bridge": "~2.6",
         "symfony/event-dispatcher": "~2.6",
         "pear/pear_exception": "~1.0.0",
-        "pear/pear-core-minimal": "~1.9.5"
+        "pear/pear-core-minimal": "~1.9.5",
+        "piwik/referrer-spam-blacklist": "~1.0",
+        "tecnick.com/tcpdf": "~6.0"
     },
     "require-dev": {
         "aws/aws-sdk-php": "2.7.1",

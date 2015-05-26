@@ -60,6 +60,10 @@ class DeprecatedMethodsTest extends \PHPUnit_Framework_TestCase
         $this->assertDeprecatedMethodIsRemoved('Piwik\Plugins\UserSettings\API', 'getLanguageCode', $validTill);
         $this->assertDeprecatedMethodIsRemoved('Piwik\Plugins\UserSettings\UserSettings', 'renameDeprecatedModuleAndAction', $validTill);
 
+        // please be aware if re-adding a plugin called userSettings, and someone updates eg from Piwik 2.13 to that version,
+        // the plugin will be possibly removed in an Update during 2.14.0
+        $this->assertDeprecatedClassIsRemoved('Piwik\Plugins\UserSettings\UserSettings', $validTill);
+
         $validTill = '2015-06-01';
         $this->assertDeprecatedMethodIsRemoved('Piwik\Archive', 'getBlob', $validTill);
 
@@ -71,6 +75,10 @@ class DeprecatedMethodsTest extends \PHPUnit_Framework_TestCase
     {
         $now         = Date::now();
         $removalDate = Date::factory($removalDate);
+
+        if (!class_exists($className)) {
+            return;
+        }
 
         $class        = new ReflectionClass($className);
         $methodExists = $class->hasMethod($method);

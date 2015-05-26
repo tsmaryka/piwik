@@ -8,6 +8,7 @@
 
 namespace Piwik\Plugins\UsersManager\tests;
 
+use Piwik\Config;
 use Piwik\Piwik;
 use Piwik\Plugins\UsersManager\UserPreferences;
 use Piwik\Plugins\UsersManager\API as APIUsersManager;
@@ -89,6 +90,50 @@ class UserPreferencesTest extends IntegrationTestCase
         $this->assertEquals(1, $this->userPreferences->getDefaultWebsiteId());
     }
 
+    /**
+     * @dataProvider provideDefaultDates
+     */
+    public function test_getDefaultDateAndPeriod($defaultDate, $expectedDate, $expectedPeriod)
+    {
+        $this->setDefaultDate($defaultDate);
+        $this->assertEquals($expectedDate, $this->userPreferences->getDefaultDate());
+        $this->assertEquals($expectedPeriod, $this->userPreferences->getDefaultPeriod());
+    }
+
+    public function provideDefaultDates()
+    {
+        return array(
+            'today'     => array('today', 'today', 'day'),
+            'yesterday' => array('yesterday', 'yesterday', 'day'),
+            'month'     => array('month', 'today', 'month'),
+            'week'      => array('week', 'today', 'week'),
+            'last7'     => array('last7', 'last7', 'range'),
+            'last30'    => array('last30', 'last30', 'range'),
+        );
+    }
+
+    public function test_getDefaultPeriod_ShouldOnlyReturnAllowedPeriods()
+    {
+        // Only allow for week period
+        Config::getInstance()->General['enabled_periods_UI'] = 'week';
+        Config::getInstance()->General['default_period'] = 'week';
+        Config::getInstance()->General['default_day'] = 'yesterday';
+
+        $this->setDefaultDate('today');
+        // Should be system defaults
+        $this->assertEquals('week', $this->userPreferences->getDefaultPeriod());
+        $this->assertEquals('yesterday', $this->userPreferences->getDefaultDate());
+    }
+
+    public function test_getDefaultDate_ShouldOnlyReturnDateInAllowedPeriods()
+    {
+        // Only allow for week period
+        Config::getInstance()->General['enabled_periods_UI'] = 'day';
+        Config::getInstance()->General['default_period'] = 'day';
+        $this->setDefaultDate('last7');
+        $this->assertEquals('yesterday', $this->userPreferences->getDefaultDate());
+    }
+
     private function setSuperUser()
     {
         $pseudoMockAccess = new FakeAccess();
@@ -110,9 +155,19 @@ class UserPreferencesTest extends IntegrationTestCase
 
     private function setDefaultReport($defaultReport)
     {
-        APIUsersManager::getInstance()->setUserPreference(Piwik::getCurrentUserLogin(),
+        APIUsersManager::getInstance()->setUserPreference(
+            Piwik::getCurrentUserLogin(),
             APIUsersManager::PREFERENCE_DEFAULT_REPORT,
-            $defaultReport);
+            $defaultReport
+        );
     }
 
+    private function setDefaultDate($date)
+    {
+        APIUsersManager::getInstance()->setUserPreference(
+            Piwik::getCurrentUserLogin(),
+            APIUsersManager::PREFERENCE_DEFAULT_REPORT_DATE,
+            $date
+        );
+    }
 }

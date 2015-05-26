@@ -12,7 +12,7 @@ use Piwik\Config;
 use Piwik\Db;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Cache as PiwikCache;
-use Piwik\Translate;
+use Piwik\Tests\Framework\Mock\TestConfig;
 
 /**
  * Tests extending IntegrationTestCase are much slower to run: the setUp will
@@ -74,7 +74,10 @@ abstract class IntegrationTestCase extends SystemTestCase
     {
         parent::setUp();
 
-        Config::getInstance()->setTestEnvironment();
+        self::$fixture->extraDefinitions = array_merge(static::provideContainerConfigBeforeClass(), $this->provideContainerConfig());
+        self::$fixture->createEnvironmentInstance();
+
+        Fixture::loadAllPlugins(new \Piwik_TestingEnvironment(), get_class($this), self::$fixture->extraPluginsToLoad);
 
         if (!empty(self::$tableData)) {
             self::restoreDbTables(self::$tableData);
@@ -104,6 +107,17 @@ abstract class IntegrationTestCase extends SystemTestCase
     protected static function beforeTableDataCached()
     {
         // empty
+    }
+
+    /**
+     * Use this method to return custom container configuration that you want to apply for the tests.
+     * This configuration will override Fixture config and config specified in SystemTestCase::provideContainerConfig().
+     *
+     * @return array
+     */
+    public function provideContainerConfig()
+    {
+        return array();
     }
 }
 

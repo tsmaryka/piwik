@@ -78,9 +78,14 @@ describe("ViewDataTableTest", function () { // TODO: should remove Test suffix f
         }, done);
     });
 
+    it("should show the limit selector when the limit selector is clicked", function (done) {
+        expect.screenshot('limit_selector_open').to.be.capture(function (page) {
+            page.click('.limitSelection');
+        }, done);
+    });
+
     it("should change the number of rows when new limit selected", function (done) {
         expect.screenshot('10_change_limit').to.be.capture(function (page) {
-            page.click('.limitSelection');
             page.click('.limitSelection ul li[value=10]');
         }, done);
     });
@@ -134,7 +139,7 @@ describe("ViewDataTableTest", function () { // TODO: should remove Test suffix f
 
     it("should display a related report when related report link is clicked", function (done) {
         expect.screenshot('related_report_click').to.be.capture(function (page) {
-            var newReportUrl = url.replace("=Referrers", "=UserSettings").replace("=getKeywords", "=getOS");
+            var newReportUrl = url.replace("=Referrers", "=DevicesDetection").replace("=getKeywords", "=getOsFamilies");
 
             page.load(newReportUrl);
             page.click('.datatableRelatedReports li>span:visible');

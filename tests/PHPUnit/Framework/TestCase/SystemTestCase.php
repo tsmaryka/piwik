@@ -64,6 +64,7 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         }
 
         $fixture->testCaseClass = get_called_class();
+        $fixture->extraDefinitions = static::provideContainerConfigBeforeClass();
 
         try {
             $fixture->performSetUp();
@@ -597,9 +598,9 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         }
     }
 
-    public function assertHttpResponseText($expectedResponseCode, $url, $message = '')
+    public function assertHttpResponseText($expectedResponseText, $url, $message = '')
     {
-        self::assertThat($url, new HttpResponseText($expectedResponseCode), $message);
+        self::assertThat($url, new HttpResponseText($expectedResponseText), $message);
     }
 
     public function assertResponseCode($expectedResponseCode, $url, $message = '')
@@ -617,6 +618,16 @@ abstract class SystemTestCase extends PHPUnit_Framework_TestCase
         self::assertTrue(Db::hasDatabaseObject(), $message);
     }
 
+    /**
+     * Use this method to return custom container configuration that you want to apply for the tests.
+     * This configuration will override Fixture config.
+     *
+     * @return array
+     */
+    public static function provideContainerConfigBeforeClass()
+    {
+        return array();
+    }
 }
 
 SystemTestCase::$fixture = new \Piwik\Tests\Framework\Fixture();

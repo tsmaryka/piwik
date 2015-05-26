@@ -18,6 +18,7 @@ use Piwik\Exception\DatabaseSchemaIsNewerThanCodebaseException;
 use Piwik\Http\ControllerResolver;
 use Piwik\Http\Router;
 use Piwik\Plugin\Report;
+use Piwik\Plugins\CoreAdminHome\CustomLogo;
 use Piwik\Session;
 
 /**
@@ -187,34 +188,6 @@ class FrontController extends Singleton
     }
 
     /**
-     * Loads the config file
-     * This is overridden in tests to ensure test config file is used
-     *
-     * @return Exception
-     */
-    public static function createConfigObject()
-    {
-        $exceptionToThrow = false;
-        try {
-            Config::getInstance()->database; // access property to check if the local file exists
-        } catch (Exception $exception) {
-            Log::debug($exception);
-
-            /**
-             * Triggered when the configuration file cannot be found or read, which usually
-             * means Piwik is not installed yet.
-             *
-             * This event can be used to start the installation process or to display a custom error message.
-             *
-             * @param Exception $exception The exception that was thrown by `Config::getInstance()`.
-             */
-            Piwik::postEvent('Config.NoConfigurationFile', array($exception), $pending = true);
-            $exceptionToThrow = $exception;
-        }
-        return $exceptionToThrow;
-    }
-
-    /**
      * Must be called before dispatch()
      * - checks that directories are writable,
      * - loads the configuration file,
@@ -232,8 +205,6 @@ class FrontController extends Singleton
             return;
         }
         $initialized = true;
-
-        $exceptionToThrow = self::createConfigObject();
 
         $tmpPath = StaticContainer::get('path.tmp');
 
@@ -254,10 +225,6 @@ class FrontController extends Singleton
 
         Plugin\Manager::getInstance()->loadPluginTranslations();
         Plugin\Manager::getInstance()->loadActivatedPlugins();
-
-        if ($exceptionToThrow) {
-            throw $exceptionToThrow;
-        }
 
         // try to connect to the database
         try {
@@ -412,28 +379,28 @@ class FrontController extends Singleton
 
     protected function handleMaintenanceMode()
     {
-        if (Config::getInstance()->General['maintenance_mode'] == 1
-            && !Common::isPhpCliMode()
-        ) {
-            $format = Common::getRequestVar('format', '');
-
-            $message = "Piwik is in scheduled maintenance. Please come back later."
-                . " The administrator can disable maintenance by editing the file piwik/config/config.ini.php and removing the following: "
-                . " maintenance_mode=1 ";
-            if (Config::getInstance()->Tracker['record_statistics'] == 0) {
-                $message .= ' and record_statistics=0';
-            }
-
-            $exception = new Exception($message);
-            // extend explain how to re-enable
-            // show error message when record stats = 0
-            if (empty($format)) {
-                throw $exception;
-            }
-            $response = new ResponseBuilder($format);
-            echo $response->getResponseException($exception);
-            exit;
+        if ((Config::getInstance()->General['maintenance_mode'] != 1) || Common::isPhpCliMode()) {
+            return;
         }
+        Common::sendResponseCode(503);
+
+        $logoUrl = null;
+        $faviconUrl = null;
+        try {
+            $logo = new CustomLogo();
+            $logoUrl = $logo->getHeaderLogoUrl();
+            $faviconUrl = $logo->getPathUserFavicon();
+        } catch (Exception $ex) {
+        }
+        $logoUrl = $logoUrl ?: 'plugins/Morpheus/images/logo-header.png';
+        $faviconUrl = $faviconUrl ?: 'plugins/CoreHome/images/favicon.ico';
+
+        $page = file_get_contents(PIWIK_INCLUDE_PATH . '/plugins/Morpheus/templates/maintenance.tpl');
+        $page = str_replace('%logoUrl%', $logoUrl, $page);
+        $page = str_replace('%faviconUrl%', $faviconUrl, $page);
+        $page = str_replace('%piwikTitle%', Piwik::getRandomTitle(), $page);
+        echo $page;
+        exit;
     }
 
     protected function handleSSLRedirection()

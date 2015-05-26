@@ -185,6 +185,7 @@
         "Language_za": "czuang",
         "Language_zh": "chiński",
         "Language_zu": "zulu",
-        "LanguageCode": "Kod języka"
+        "LanguageCode": "Kod języka",
+        "PluginDescription": "Raportuj języki używane przez przeglądarki odwiedzających."
     }
 }

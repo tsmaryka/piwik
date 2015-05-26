@@ -9,18 +9,32 @@
 namespace Piwik\Plugins\CoreAdminHome;
 
 use Exception;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use Piwik\Container\StaticContainer;
 use Piwik\Archive\ArchiveInvalidator;
+use Piwik\CronArchive;
 use Piwik\Db;
 use Piwik\Piwik;
 use Piwik\Scheduler\Scheduler;
 use Piwik\Site;
+use Psr\Log\LoggerInterface;
 
 /**
  * @method static \Piwik\Plugins\CoreAdminHome\API getInstance()
  */
 class API extends \Piwik\Plugin\API
 {
+    /**
+     * @var Scheduler
+     */
+    private $scheduler;
+
+    public function __construct(Scheduler $scheduler)
+    {
+        $this->scheduler = $scheduler;
+    }
+
     /**
      * Will run all scheduled tasks due to run at this time.
      *
@@ -31,10 +45,7 @@ class API extends \Piwik\Plugin\API
     {
         Piwik::checkUserHasSuperUserAccess();
 
-        /** @var Scheduler $scheduler */
-        $scheduler = StaticContainer::getContainer()->get('Piwik\Scheduler\Scheduler');
-
-        return $scheduler->run();
+        return $this->scheduler->run();
     }
 
     /**
@@ -77,5 +88,23 @@ class API extends \Piwik\Plugin\API
         return $output;
     }
 
+    /**
+     * Initiates cron archiving via web request.
+     *
+     * @hideExceptForSuperUser
+     */
+    public function runCronArchiving()
+    {
+        Piwik::checkUserHasSuperUserAccess();
 
+        // HTTP request: logs needs to be dumped in the HTTP response (on top of existing log destinations)
+        /** @var \Monolog\Logger $logger */
+        $logger = StaticContainer::get('Psr\Log\LoggerInterface');
+        $handler = new StreamHandler('php://output', Logger::INFO);
+        $handler->setFormatter(StaticContainer::get('Piwik\Plugins\Monolog\Formatter\LineMessageFormatter'));
+        $logger->pushHandler($handler);
+
+        $archiver = new CronArchive();
+        $archiver->main();
+    }
 }

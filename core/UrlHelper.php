@@ -155,6 +155,17 @@ class UrlHelper
         if (strlen($urlQuery) == 0) {
             return array();
         }
+
+        // TODO: this method should not use a cache. callers should instead have their own cache, configured through DI.
+        //       one undesirable side effect of using a cache here, is that this method can now init the StaticContainer, which makes setting
+        //       test environment for RequestCommand more complicated.
+        $cache    = Cache::getTransientCache();
+        $cacheKey = 'arrayFromQuery' . $urlQuery;
+
+        if ($cache->contains($cacheKey)) {
+            return $cache->fetch($cacheKey);
+        }
+
         if ($urlQuery[0] == '?') {
             $urlQuery = substr($urlQuery, 1);
         }
@@ -200,6 +211,9 @@ class UrlHelper
                 $nameToValue[$name] = $value;
             }
         }
+
+        $cache->save($cacheKey, $nameToValue);
+
         return $nameToValue;
     }
 
@@ -214,6 +228,7 @@ class UrlHelper
     public static function getParameterFromQueryString($urlQuery, $parameter)
     {
         $nameToValue = self::getArrayFromQueryString($urlQuery);
+
         if (isset($nameToValue[$parameter])) {
             return $nameToValue[$parameter];
         }

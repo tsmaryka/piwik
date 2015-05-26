@@ -8,6 +8,7 @@
  */
 namespace Piwik;
 
+use Piwik\Application\Environment;
 use Piwik\Config\ConfigNotFoundException;
 use Piwik\Container\StaticContainer;
 use Piwik\Plugin\Manager as PluginManager;
@@ -20,9 +21,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class Console extends Application
 {
+    /**
+     * @var Environment
+     */
+    private $environment;
+
     public function __construct()
     {
-        $this->checkCompatibility();
+        $this->setServerArgsIfPhpCgi();
 
         parent::__construct();
 
@@ -34,13 +40,23 @@ class Console extends Application
 
         $this->getDefinition()->addOption($option);
 
-        StaticContainer::setEnvironment('cli');
+        $option = new InputOption('xhprof',
+            null,
+            InputOption::VALUE_NONE,
+            'Enable profiling with XHProf'
+        );
+
+        $this->getDefinition()->addOption($option);
     }
 
     public function doRun(InputInterface $input, OutputInterface $output)
     {
+        if ($input->hasParameterOption('--xhprof')) {
+            Profiler::setupProfilerXHProf(true, true);
+        }
+
         $this->initPiwikHost($input);
-        $this->initConfig($output);
+        $this->initEnvironment($output);
         $this->initLoggerOutput($output);
 
         try {
@@ -114,13 +130,22 @@ class Console extends Application
         return $commands;
     }
 
-    private function checkCompatibility()
+    private function setServerArgsIfPhpCgi()
     {
         if (Common::isPhpCgiType()) {
-            echo 'Piwik Console is known to be not compatible with PHP-CGI (you are using '.php_sapi_name().'). ' .
-                 'Please execute console using PHP-CLI. For instance "/usr/bin/php-cli console ..."';
-            echo "\n";
-            exit(1);
+            $_SERVER['argv'] = array();
+            foreach ($_GET as $name => $value) {
+                $argument = $name;
+                if (!empty($value)) {
+                    $argument .= '=' . $value;
+                }
+
+                $_SERVER['argv'][] = $argument;
+            }
+
+            if (!defined('STDIN')) {
+                define('STDIN', fopen('php://stdin','r'));
+            }
         }
     }
 
@@ -141,12 +166,13 @@ class Console extends Application
         Url::setHost($piwikHostname);
     }
 
-    protected function initConfig(OutputInterface $output)
+    protected function initEnvironment(OutputInterface $output)
     {
-        $config = Config::getInstance();
-
         try {
-            $config->checkLocalConfigFound();
+            $this->environment = new Environment('cli');
+            $this->environment->init();
+
+            $config = Config::getInstance();
             return $config;
         } catch (\Exception $e) {
             $output->writeln($e->getMessage() . "\n");

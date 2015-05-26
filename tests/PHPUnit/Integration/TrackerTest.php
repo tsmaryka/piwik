@@ -8,6 +8,7 @@
 
 namespace Piwik\Tests\Integration;
 
+use Piwik\Application\Kernel\GlobalSettingsProvider;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\EventDispatcher;
@@ -19,7 +20,6 @@ use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
 use Piwik\Tracker;
 use Piwik\Tracker\RequestSet;
 use Piwik\Tracker\Request;
-use Piwik\Translate;
 
 class TestTracker extends Tracker
 {
@@ -71,7 +71,6 @@ class TrackerTest extends IntegrationTestCase
         if($this->tracker) {
             $this->tracker->disconnectDatabase();
         }
-        EventDispatcher::getInstance()->clearObservers('Tracker.makeNewVisitObject');
         if (array_key_exists('PIWIK_TRACKER_DEBUG', $GLOBALS)) {
             unset($GLOBALS['PIWIK_TRACKER_DEBUG']);
         }
@@ -145,16 +144,13 @@ class TrackerTest extends IntegrationTestCase
 
         $this->assertFalse(SettingsServer::isTrackerApiRequest());
 
-        $this->assertTrue(Config::getInstance()->existsLocalConfig());
+        $this->assertTrue(is_readable(Config::getInstance()->getLocalPath()));
 
         $this->removeConfigFile();
-        try {
-            Config::getInstance()->reload();
-        } catch (\Exception $ex) {
-            // ignore config file not found exception
-        }
 
-        $this->assertFalse(Config::getInstance()->existsLocalConfig());
+        $this->assertFalse(is_readable(Config::getInstance()->getLocalPath()));
+
+        Config::unsetInstance();
 
         Tracker::loadTrackerEnvironment();
 
@@ -252,6 +248,22 @@ class TrackerTest extends IntegrationTestCase
 
         $this->assertActionEquals('test', 1);
         $this->assertActionEquals('example.com', 2);
+    }
+
+    public function test_trackRequest_shouldTrackOutlinkWithFragment()
+    {
+        $request = $this->buildRequest(array('idsite' => 1, 'link' => 'http://example.com/outlink#fragment-here', 'rec' => 1));
+        $this->tracker->trackRequest($request);
+
+        $this->assertActionEquals('http://example.com/outlink#fragment-here', 1);
+    }
+
+    public function test_trackRequest_shouldTrackDownloadWithFragment()
+    {
+        $request = $this->buildRequest(array('idsite' => 1, 'download' => 'http://example.com/file.zip#fragment-here&pk_campaign=Campaign param accepted here', 'rec' => 1));
+        $this->tracker->trackRequest($request);
+
+        $this->assertActionEquals('http://example.com/file.zip#fragment-here&amp;pk_campaign=Campaign param accepted here', 1);
     }
 
     public function test_main_shouldReturnEmptyPiwikResponse_IfNoRequestsAreGiven()

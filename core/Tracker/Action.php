@@ -125,7 +125,12 @@ abstract class Action
 
     private static function getAllActions(Request $request)
     {
-        $actions   = Manager::getInstance()->findMultipleComponents('Actions', '\\Piwik\\Tracker\\Action');
+        static $actions;
+
+        if (is_null($actions)) {
+            $actions = Manager::getInstance()->findMultipleComponents('Actions', '\\Piwik\\Tracker\\Action');
+        }
+
         $instances = array();
 
         foreach ($actions as $action) {
@@ -199,6 +204,13 @@ abstract class Action
             Common::printDebug(' Before was "' . $this->rawActionUrl . '"');
             Common::printDebug(' After is "' . $url . '"');
         }
+    }
+
+    protected function setActionUrlWithoutExcludingParameters($url)
+    {
+        $url = PageUrl::getUrlIfLookValid($url);
+        $this->rawActionUrl = $url;
+        $this->actionUrl = $url;
     }
 
     abstract protected function getActionsToLookup();

@@ -1,5 +1,6 @@
 {
     "UserLanguage": {
+        "BrowserLanguage": "Jezik preglednika",
         "Language_aa": "afarski",
         "Language_ab": "abhaski",
         "Language_ae": "avestan",
@@ -183,6 +184,8 @@
         "Language_yo": "joruba",
         "Language_za": "zhuang",
         "Language_zh": "kineski",
-        "Language_zu": "zulu"
+        "Language_zu": "zulu",
+        "LanguageCode": "Oznaka jezika",
+        "PluginDescription": "Bilježi jezik na koji je podešen preglednik posjetitelja."
     }
 }

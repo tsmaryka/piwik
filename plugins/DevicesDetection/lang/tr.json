@@ -1,5 +1,6 @@
 {
     "DevicesDetection": {
+        "BrowserEngine": "Tarayıcı",
         "BrowserFamily": "Tarayıcı ailesi",
         "Browsers": "Tarayıcılar",
         "BrowserVersion": "Tarayıcı sürümü",
@@ -12,7 +13,7 @@
         "dataTableLabelBrands": "Marka",
         "dataTableLabelModels": "Model",
         "dataTableLabelSystemVersion": "İşletim Sistemi versiyonu",
-        "dataTableLabelTypes": "Tip",
+        "dataTableLabelTypes": "Tür",
         "Device": "Cihaz",
         "DeviceBrand": "Cihaz markası",
         "DeviceDetection": "Cihaz algılama",
@@ -24,6 +25,7 @@
         "OperatingSystemVersions": "İşletim Sistemi versiyonları",
         "SmartDisplay": "Akıllı görüntüleme",
         "Smartphone": "Akıllı Telefon",
+        "Devices": "Cihazlar",
         "Tablet": "Tablet",
         "TV": "Tv",
         "UserAgent": "User-Agent",

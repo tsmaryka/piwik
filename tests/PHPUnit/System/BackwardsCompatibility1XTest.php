@@ -105,8 +105,7 @@ class BackwardsCompatibility1XTest extends SystemTestCase
 
             // those reports generate a different segment as a different raw value was stored that time
             'DevicesDetection.getOsVersions',
-            'UserSettings.getOS',
-            'UserSettings.getBrowserType'
+            'Goals.get'
         );
 
         $apiNotToCall = array(
@@ -125,6 +124,11 @@ class BackwardsCompatibility1XTest extends SystemTestCase
              // the Action.getPageTitles test fails for unknown reason, so skipping it
              // eg. https://travis-ci.org/piwik/piwik/jobs/24449365
             'Action.getPageTitles',
+
+            // Outlinks now tracked with URL Fragment which was not the case in 1.X
+            'Actions.get',
+            'Actions.getOutlink',
+            'Actions.getOutlinks',
         );
 
         $apiNotToCall = array_merge($apiNotToCall, $reportsToCompareSeparately);

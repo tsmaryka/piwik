@@ -40,7 +40,7 @@ class CoreAdminHome extends \Piwik\Plugin
         $stylesheets[] = "libs/jquery/themes/base/jquery-ui.min.css";
         $stylesheets[] = "plugins/CoreAdminHome/stylesheets/menu.less";
         $stylesheets[] = "plugins/Morpheus/stylesheets/base.less";
-        $stylesheets[] = "plugins/Morpheus/stylesheets/theme.less";
+        $stylesheets[] = "plugins/Morpheus/stylesheets/main.less";
         $stylesheets[] = "plugins/CoreAdminHome/stylesheets/generalSettings.less";
         $stylesheets[] = "plugins/CoreAdminHome/stylesheets/pluginSettings.less";
     }
@@ -55,7 +55,6 @@ class CoreAdminHome extends \Piwik\Plugin
         $jsFiles[] = "plugins/Morpheus/javascripts/ajaxHelper.js";
         $jsFiles[] = "plugins/Morpheus/javascripts/jquery.icheck.min.js";
         $jsFiles[] = "plugins/Morpheus/javascripts/morpheus.js";
-        $jsFiles[] = "libs/jquery/jquery.history.js";
         $jsFiles[] = "plugins/CoreHome/javascripts/broadcast.js";
         $jsFiles[] = "plugins/CoreAdminHome/javascripts/generalSettings.js";
         $jsFiles[] = "plugins/CoreHome/javascripts/donate.js";

@@ -17,6 +17,11 @@
     padding: 0 0 40px;
     display: table;
     font-size: 13px;
+
+    // Fix the <pre> blocks because of the display: table
+    pre {
+        max-width: 995px;
+    }
 }
 
 .admin #header_message {
@@ -69,16 +74,6 @@ table.admin  tbody td:hover, table.admin  tbody th:hover {
     text-decoration: none;
 }
 
-.warning {
-    border: 1px dotted gray;
-    padding: 15px;
-    font-size: .8em;
-}
-
-.warning ul {
-    margin-left: 50px;
-}
-
 .access_error {
     font-size: .7em;
     padding: 15px;
@@ -95,7 +90,7 @@ table.admin  tbody td:hover, table.admin  tbody th:hover {
 .admin p, .admin section {
     margin-top: 10px;
     line-height: 140%;
-    padding-bottom: 20px;
+    padding-bottom: 10px;
 }
 
 .adminTable {
