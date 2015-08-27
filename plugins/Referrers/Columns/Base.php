@@ -236,13 +236,15 @@ abstract class Base extends VisitDimension
             if (isset($this->currentUrlParse['host'])) {
                 $currentHost = Common::mb_strtolower($this->currentUrlParse['host'], 'UTF-8');
                 if ($currentHost == Common::mb_strtolower($this->referrerHost, 'UTF-8')) {
-                    $this->typeReferrerAnalyzed = Common::REFERRER_TYPE_DIRECT_ENTRY;
-                    return true;
+                    //CHANGING THIS TO REFERRER_TYPE_WEBSITE to show the referrer for vists from the portal
+		    $this->typeReferrerAnalyzed = Common::REFERRER_TYPE_WEBSITE;
+                    return false;
                 }
             }
             if (Visit::isHostKnownAliasHost($this->referrerHost, $this->idsite)) {
-                $this->typeReferrerAnalyzed = Common::REFERRER_TYPE_DIRECT_ENTRY;
-                return true;
+		//CHANGING THIS TO REFERRER_TYPE_WEBSITE to show the referrer for vists from the portal
+                $this->typeReferrerAnalyzed = Common::REFERRER_TYPE_WEBSITE;
+                return false;
             }
         }
         return false;

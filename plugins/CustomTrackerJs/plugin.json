@@ -1,0 +1,19 @@
+{
+    "name": "CustomTrackerJs",
+    "version": "1.0.3",
+    "description": "Let super users and plugins customize the piwik.js tracker file.",
+    "theme": false,
+    "homepage": "https://github.com/PiwikPRO/plugin-CustomTrackerJs",
+    "license": "GPL-3.0+",
+    "keywords": ["javascript", "tracker"],
+    "require": {
+        "piwik": ">=2.8.0-b4"
+    },
+    "authors": [
+        {
+            "name": "Piwik",
+            "email": "",
+            "homepage": ""
+        }
+    ]
+}

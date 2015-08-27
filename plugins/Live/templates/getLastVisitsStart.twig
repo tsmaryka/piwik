@@ -61,7 +61,17 @@
                         </span>
                     {% endif %}
                 {% elseif visitor.referrerType is defined %}
-                    {{ 'Referrers_DirectEntry'|translate }}
+                    {{ 'Referrers_DirectEntry'|translate }} <br />
+	 	    {% if visitor.referrerUrl is not empty %}
+                        <a href="{{ visitor.referrerUrl }}" rel="noreferrer"  target="_blank">
+                    {% endif %}
+                    {% if visitor.searchEngineIcon is defined %}
+                        <img src="{{ visitor.searchEngineIcon }}" />
+                    {% endif %}
+                    {{ visitor.referrerName }}
+                    {% if visitor.referrerUrl is not empty %}
+                        </a>
+                    {% endif %}
                 {% endif %}
             </div>
             <div id="{{ visitor.idVisit }}_actions" class="settings">

@@ -2971,7 +2971,8 @@ if (typeof Piwik !== 'object') {
                     originalReferrerHostName = referralUrl.length ? getHostName(referralUrl) : '';
 
                     if (currentReferrerHostName.length && // there is a referrer
-                        !isSiteHostName(currentReferrerHostName) && // domain is not the current domain
+                        //REMOVING THIS LINE BELOW! We want to track the referrer from the same domain name. -Trevor (July 27, 2015)
+			//!isSiteHostName(currentReferrerHostName) && // domain is not the current domain
                         (!configConversionAttributionFirstReferrer || // attribute to last known referrer
                         !originalReferrerHostName.length || // previously empty
                         isSiteHostName(originalReferrerHostName))) { // previously set but in current domain
