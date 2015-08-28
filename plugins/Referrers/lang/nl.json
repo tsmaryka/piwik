@@ -1,5 +1,6 @@
 {
     "Referrers": {
+        "AllReferrersReportDocumentation": "Dit samengestelde rapport laat al uw referers zien met weergave van alle websites, zoekwoorden en campagnes waarmee bezoekers uw site hebben gevonden.",
         "Campaigns": "Campagnes",
         "CampaignsDocumentation": "Bezoekers die op uw website uitkwamen via een campagne. %s Bekijk het %s rapport voor meer details.",
         "CampaignsReportDocumentation": "Dit rapport toont de campagnes die bezoekers naar uw website hebben geleid. %s Voor meer informatie over Campagne Tracking, lees de %scampagne documentatie op piwik.org%s",
@@ -23,6 +24,7 @@
         "ReferrerName": "Verwijzer Naam",
         "Referrers": "Referrers",
         "ReferrersOverview": "Referer Overzicht",
+        "ReferrerTypes": "Referrer Types",
         "SearchEngines": "Zoekmachines",
         "SearchEnginesDocumentation": "Een bezoeker is doorverwezen naar uw website via een zoekmachine. %s Bekijk het %s rapport voor meer details.",
         "SearchEnginesReportDocumentation": "Dit rapport toont de zoekmachines die bezoekers naar uw wbsite hebben verwezen. %s Door op een rij in de tabel te klikken kunt u zien naar wat men precies op zoek was in de betreffende zoekmachine.",

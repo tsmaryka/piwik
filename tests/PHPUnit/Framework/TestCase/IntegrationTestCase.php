@@ -8,11 +8,13 @@
 
 namespace Piwik\Tests\Framework\TestCase;
 
+use Piwik\Access;
 use Piwik\Config;
 use Piwik\Db;
+use Piwik\Menu\MenuAbstract;
 use Piwik\Tests\Framework\Fixture;
 use Piwik\Cache as PiwikCache;
-use Piwik\Tests\Framework\Mock\TestConfig;
+use Piwik\Tests\Framework\TestingEnvironmentVariables;
 
 /**
  * Tests extending IntegrationTestCase are much slower to run: the setUp will
@@ -74,17 +76,21 @@ abstract class IntegrationTestCase extends SystemTestCase
     {
         parent::setUp();
 
-        self::$fixture->extraDefinitions = array_merge(static::provideContainerConfigBeforeClass(), $this->provideContainerConfig());
-        self::$fixture->createEnvironmentInstance();
+        static::$fixture->extraDefinitions = array_merge(static::provideContainerConfigBeforeClass(), $this->provideContainerConfig());
+        static::$fixture->createEnvironmentInstance();
 
-        Fixture::loadAllPlugins(new \Piwik_TestingEnvironment(), get_class($this), self::$fixture->extraPluginsToLoad);
+        Db::createDatabaseObject();
+        Fixture::loadAllPlugins(new TestingEnvironmentVariables(), get_class($this), self::$fixture->extraPluginsToLoad);
 
+        Access::getInstance()->setSuperUserAccess(true);
+        
         if (!empty(self::$tableData)) {
             self::restoreDbTables(self::$tableData);
         }
 
         PiwikCache::getEagerCache()->flushAll();
         PiwikCache::getTransientCache()->flushAll();
+        MenuAbstract::clearMenus();
     }
 
     /**
@@ -93,15 +99,17 @@ abstract class IntegrationTestCase extends SystemTestCase
     public function tearDown()
     {
         static::$fixture->clearInMemoryCaches();
+        static::$fixture->destroyEnvironment();
 
         parent::tearDown();
     }
 
     protected static function configureFixture($fixture)
     {
-        $fixture->loadTranslations    = false;
         $fixture->createSuperUser     = false;
         $fixture->configureComponents = false;
+
+        $fixture->extraTestEnvVars['loadRealTranslations'] = false;
     }
 
     protected static function beforeTableDataCached()

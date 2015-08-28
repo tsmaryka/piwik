@@ -1,5 +1,10 @@
 <?php
-
+/**
+ * Piwik - free/libre analytics platform
+ *
+ * @link http://piwik.org
+ * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
+ */
 namespace Piwik\Plugins\Diagnostics\Diagnostic;
 
 use Piwik\Translation\Translator;
@@ -46,6 +51,7 @@ class RecommendedFunctionsCheck implements Diagnostic
     private function getRecommendedFunctions()
     {
         return array(
+            'shell_exec',
             'set_time_limit',
             'mail',
             'parse_ini_file',
@@ -57,6 +63,7 @@ class RecommendedFunctionsCheck implements Diagnostic
     private function getHelpMessage($function)
     {
         $messages = array(
+            'shell_exec'     => 'Installation_SystemCheckFunctionHelp',
             'set_time_limit' => 'Installation_SystemCheckTimeLimitHelp',
             'mail'           => 'Installation_SystemCheckMailHelp',
             'parse_ini_file' => 'Installation_SystemCheckParseIniFileHelp',

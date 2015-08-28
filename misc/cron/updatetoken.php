@@ -12,6 +12,8 @@
 namespace Piwik;
 
 use Piwik\Application\Environment;
+use Piwik\Tests\Framework\TestingEnvironmentManipulator;
+use Piwik\Tests\Framework\TestingEnvironmentVariables;
 
 if (!defined('PIWIK_INCLUDE_PATH')) {
     define('PIWIK_INCLUDE_PATH', realpath(dirname(__FILE__) . "/../.."));
@@ -33,10 +35,10 @@ if (!Common::isPhpCliMode()) {
 
 $testmode = in_array('--testmode', $_SERVER['argv']);
 if ($testmode) {
-    require_once PIWIK_INCLUDE_PATH . "/tests/PHPUnit/TestingEnvironment.php";
-    \Piwik_TestingEnvironment::addHooks();
-}
+    define('PIWIK_TEST_MODE', true);
 
+    Environment::setGlobalEnvironmentManipulator(new TestingEnvironmentManipulator(new TestingEnvironmentVariables()));
+}
 
 function getPiwikDomain()
 {

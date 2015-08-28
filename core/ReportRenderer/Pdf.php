@@ -21,7 +21,7 @@ use Piwik\TCPDF;
 require_once PIWIK_INCLUDE_PATH . '/plugins/ScheduledReports/config/tcpdf_config.php';
 
 /**
- *
+ * PDF report renderer
  */
 class Pdf extends ReportRenderer
 {
@@ -90,6 +90,10 @@ class Pdf extends ReportRenderer
 
     public function setLocale($locale)
     {
+        // WARNING
+        // To make Piwik release smaller, we're deleting some fonts from the Piwik build package.
+        // If you change this code below, make sure that the fonts are NOT deleted from the Piwik package:
+        // https://github.com/piwik/piwik-package/blob/master/scripts/build-package.sh
         switch ($locale) {
             case 'bn':
             case 'hi':
@@ -129,6 +133,8 @@ class Pdf extends ReportRenderer
                 $reportFont = ReportRenderer::DEFAULT_REPORT_FONT_FAMILY;
                 break;
         }
+        // WARNING: Did you read the warning above?
+
         $this->reportFont = $reportFont;
     }
 
@@ -196,7 +202,6 @@ class Pdf extends ReportRenderer
 
         // segment
         if ($segment != null) {
-
             $this->TCPDF->Ln();
             $this->TCPDF->Ln();
             $this->TCPDF->SetFont($this->reportFont, '', $this->reportHeaderFontSize - 2);
@@ -472,7 +477,7 @@ class Pdf extends ReportRenderer
             && $columnsCount <= 3
         ) {
             $totalWidth = $this->reportWidthPortrait * 2 / 3;
-        } else if ($this->orientation == self::LANDSCAPE) {
+        } elseif ($this->orientation == self::LANDSCAPE) {
             $totalWidth = $this->reportWidthLandscape;
         } else {
             $totalWidth = $this->reportWidthPortrait;

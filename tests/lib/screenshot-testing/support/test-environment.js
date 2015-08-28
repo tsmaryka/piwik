@@ -19,6 +19,11 @@ TestingEnvironment.prototype.reload = function () {
         delete this[key];
     }
 
+    this['useOverrideCss'] = true;
+    this['useOverrideJs'] = true;
+    this['loadRealTranslations'] = true; // UI tests should test w/ real translations, not translation keys
+    this['testUseMockAuth'] = true;
+
     if (fs.exists(testingEnvironmentOverridePath)) {
         var data = JSON.parse(fs.read(testingEnvironmentOverridePath));
         for (var key in data) {
@@ -75,11 +80,15 @@ TestingEnvironment.prototype._call = function (params, done) {
             try {
                 response = JSON.parse(response);
             } catch (e) {
+                page.close();
+
                 done(new Error("Unable to parse JSON response: " + response));
                 return;
             }
 
             if (response.result == "error") {
+                page.close();
+
                 done(new Error("API returned error: " + response.message));
                 return;
             }

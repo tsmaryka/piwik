@@ -19,8 +19,8 @@
 
   .top_controls #periodString,
   .top_controls .dashboardSettings,
-  .top_controls #segmentEditorPanel {
-    position: static;
+  .top_controls .segmentEditorPanel {
+    position: static !important;
     margin: 0 0 10px;
     float: none;
   }
@@ -34,7 +34,7 @@
     padding-left: 7px;
 
     >.sortable {
-      padding: 5px 0;
+      padding: 5px 0 10px 0;
     }
   }
 }
@@ -328,6 +328,7 @@ div.widgetpreview-preview {
   min-height: 0;
   height: auto;
   margin-right: 10px;
+  min-width: 180px;
 }
 
 .dashboardSettings .submenu {
@@ -441,5 +442,15 @@ div.widgetpreview-preview {
 .ui-dialog .widget {
   .button#close,.button#maximise {
     display:none;
+  }
+}
+
+.ui-button, .ui-dialog-titlebar-close {
+  .btn;
+  color: @theme-color-brand-contrast !important;
+  background-color: @theme-color-brand !important;
+  &:hover {
+    background: none;
+    background-color: transparent;
   }
 }

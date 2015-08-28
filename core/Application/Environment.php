@@ -41,9 +41,9 @@ class Environment
 {
     /**
      * @internal
-     * @var EnvironmentManipulator[]
+     * @var EnvironmentManipulator
      */
-    private static $globalEnvironmentManipulators = array();
+    private static $globalEnvironmentManipulator = null;
 
     /**
      * @var string
@@ -85,13 +85,25 @@ class Environment
      */
     public function init()
     {
+        $this->invokeBeforeContainerCreatedHook();
+
         $this->container = $this->createContainer();
 
-        StaticContainer::set($this->container);
+        StaticContainer::push($this->container);
 
         $this->validateEnvironment();
 
+        $this->invokeEnvironmentBootstrappedHook();
+
         Piwik::postEvent('Environment.bootstrapped'); // this event should be removed eventually
+    }
+
+    /**
+     * Destroys an environment. MUST be called when embedding environments.
+     */
+    public function destroy()
+    {
+        StaticContainer::pop();
     }
 
     /**
@@ -112,17 +124,24 @@ class Environment
     {
         $pluginList = $this->getPluginListCached();
         $settings = $this->getGlobalSettingsCached();
-        $definitions = array_merge(StaticContainer::getDefinitions(), $this->definitions);
 
-        $containerFactory = new ContainerFactory($pluginList, $settings, $this->environment, $definitions);
+        $extraDefinitions = $this->getExtraDefinitionsFromManipulators();
+        $definitions = array_merge(StaticContainer::getDefinitions(), $extraDefinitions, array($this->definitions));
+
+        $environments = array($this->environment);
+        $environments = array_merge($environments, $this->getExtraEnvironmentsFromManipulators());
+
+        $containerFactory = new ContainerFactory($pluginList, $settings, $environments, $definitions);
         return $containerFactory->create();
     }
 
     protected function getGlobalSettingsCached()
     {
         if ($this->globalSettingsProvider === null) {
-            $globalSettingsProvider = $this->getGlobalSettingsProviderOverride();
-            $this->globalSettingsProvider = $globalSettingsProvider ?: $this->getGlobalSettings();
+            $original = $this->getGlobalSettings();
+            $globalSettingsProvider = $this->getGlobalSettingsProviderOverride($original);
+
+            $this->globalSettingsProvider = $globalSettingsProvider ?: $original;
         }
         return $this->globalSettingsProvider;
     }
@@ -130,7 +149,8 @@ class Environment
     protected function getPluginListCached()
     {
         if ($this->pluginList === null) {
-            $this->pluginList = $this->getPluginList();
+            $pluginList = $this->getPluginListOverride();
+            $this->pluginList = $pluginList ?: $this->getPluginList();
         }
         return $this->pluginList;
     }
@@ -169,20 +189,58 @@ class Environment
      * @param EnvironmentManipulator $manipulator
      * @internal
      */
-    public static function addEnvironmentManipulator(EnvironmentManipulator $manipulator)
+    public static function setGlobalEnvironmentManipulator(EnvironmentManipulator $manipulator)
     {
-        self::$globalEnvironmentManipulators[] = $manipulator;
+        self::$globalEnvironmentManipulator = $manipulator;
     }
 
-    private function getGlobalSettingsProviderOverride()
+    private function getGlobalSettingsProviderOverride(GlobalSettingsProvider $original)
     {
-        foreach (self::$globalEnvironmentManipulators as $manipulator) {
-            $result = $manipulator->makeGlobalSettingsProvider();
-            if (!empty($result)) {
-                return $result;
-            }
+        if (self::$globalEnvironmentManipulator) {
+            return self::$globalEnvironmentManipulator->makeGlobalSettingsProvider($original);
+        } else {
+            return null;
         }
+    }
 
-        return null;
+    private function invokeBeforeContainerCreatedHook()
+    {
+        if (self::$globalEnvironmentManipulator) {
+            return self::$globalEnvironmentManipulator->beforeContainerCreated();
+        }
+    }
+
+    private function getExtraDefinitionsFromManipulators()
+    {
+        if (self::$globalEnvironmentManipulator) {
+            return self::$globalEnvironmentManipulator->getExtraDefinitions();
+        } else {
+            return array();
+        }
+    }
+
+    private function invokeEnvironmentBootstrappedHook()
+    {
+        if (self::$globalEnvironmentManipulator) {
+            self::$globalEnvironmentManipulator->onEnvironmentBootstrapped();
+        }
+    }
+
+    private function getExtraEnvironmentsFromManipulators()
+    {
+        if (self::$globalEnvironmentManipulator) {
+            return self::$globalEnvironmentManipulator->getExtraEnvironments();
+        } else {
+            return array();
+        }
+    }
+
+    private function getPluginListOverride()
+    {
+        if (self::$globalEnvironmentManipulator) {
+            return self::$globalEnvironmentManipulator->makePluginList($this->getGlobalSettingsCached());
+        } else {
+            return null;
+        }
     }
 }

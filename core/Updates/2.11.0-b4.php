@@ -16,34 +16,32 @@ use Piwik\Updates;
 class Updates_2_11_0_b4 extends Updates
 {
 
-    static function getSql()
+    public function getMigrationQueries(Updater $updater)
     {
         $sqls = array();
 
         $archiveTables = ArchiveTableCreator::getTablesArchivesInstalled();
 
-        $archiveBlobTables = array_filter($archiveTables, function($name) {
+        $archiveBlobTables = array_filter($archiveTables, function ($name) {
             return ArchiveTableCreator::getTypeFromTableName($name) == ArchiveTableCreator::BLOB_TABLE;
         });
 
         foreach ($archiveBlobTables as $table) {
-
             $sqls["UPDATE " . $table . " SET name = 'UserLanguage_language' WHERE name = 'UserSettings_language'"] = false;
         }
 
         return $sqls;
     }
 
-    static function update()
+    public function doUpdate(Updater $updater)
     {
         $pluginManager = \Piwik\Plugin\Manager::getInstance();
 
         try {
             $pluginManager->activatePlugin('UserLanguage');
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
         }
 
-        Updater::updateDatabase(__FILE__, self::getSql());
+        $updater->executeMigrationQueries(__FILE__, $this->getMigrationQueries($updater));
     }
-
 }

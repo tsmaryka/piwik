@@ -34,12 +34,6 @@ class ManySitesImportedLogs extends Fixture
     public $includeNginxJson = false;
     public $includeApiCustomVarMapping = false;
 
-    public static function createAccessInstance()
-    {
-        Access::setSingletonInstance($access = new OverrideLogin());
-        \Piwik\Piwik::postEvent('Request.initAuthenticationObject');
-    }
-
     public function setUp()
     {
         $this->setUpWebsitesAndGoals();
@@ -237,7 +231,8 @@ class ManySitesImportedLogs extends Fixture
     {
         $logFile = PIWIK_INCLUDE_PATH . '/tests/resources/access-logs/fake_logs_replay.log';
 
-        $opts = array('--token-auth'                => self::getTokenAuth(),
+        $opts = array('--login'                     => 'superUserLogin',
+                      '--password'                  => 'superUserPass',
                       '--recorders'                 => '1',
                       '--recorder-max-payload-size' => '1',
                       '--replay-tracking'           => false);

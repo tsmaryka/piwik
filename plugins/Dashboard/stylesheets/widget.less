@@ -2,8 +2,7 @@
     .font-default(13px, 18px);
     background: @theme-color-background-base;
     border: 1px solid @color-silver-l85;
-    .border-radius();
-    .box-shadow-1(0 1px 1px rgba(204,204,204,.5));
+    box-shadow: 0 1px 1px rgba(204,204,204,.5);
     overflow: hidden;
     z-index: 1;
 
@@ -19,7 +18,7 @@
         margin: 0;
         color: #0D0D0D;
         text-shadow: none;
-        padding: 15px 15px 10px;
+        padding: 15px 15px 10px 12px;
     }
     p {
         margin-left: 10px;
@@ -39,7 +38,6 @@
         font-weight: normal;
         padding-bottom: 4px;
         background: @theme-color-widget-title-background;
-        border-bottom: 1px solid @color-silver-l85;
         h3 {
             .font-default(15px, 18px);
             color: @theme-color-widget-title-text;
@@ -98,6 +96,11 @@
         overflow: hidden;
         width:1px;
         height:1px;
+    }
+
+    .card {
+        margin: 0px;
+        border-radius: 0px;
     }
 }
 

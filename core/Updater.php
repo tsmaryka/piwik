@@ -10,7 +10,6 @@ namespace Piwik;
 
 use Piwik\Columns\Updater as ColumnUpdater;
 use Piwik\Container\StaticContainer;
-use Piwik\Exception\DatabaseSchemaIsNewerThanCodebaseException;
 use Piwik\Updater\UpdateObserver;
 use Zend_Db_Exception;
 
@@ -86,6 +85,21 @@ class Updater
     {
         try {
             Option::set(self::getNameInOptionTable($name), $version, $autoLoad = 1);
+        } catch (\Exception $e) {
+            // case when the option table is not yet created (before 0.2.10)
+        }
+    }
+
+    /**
+     * Marks a component as successfully uninstalled. Deletes an option
+     * that looks like `"version_$componentName"`.
+     *
+     * @param string $name The component name. Eg, a plugin name, `'core'` or dimension column name.
+     */
+    public function markComponentSuccessfullyUninstalled($name)
+    {
+        try {
+            Option::delete(self::getNameInOptionTable($name));
         } catch (\Exception $e) {
             // case when the option table is not yet created (before 0.2.10)
         }
@@ -290,7 +304,7 @@ class Updater
 
                 foreach ($files as $file) {
                     $fileVersion = basename($file, '.php');
-                    if ( // if the update is from a newer version
+                    if (// if the update is from a newer version
                         version_compare($currentVersion, $fileVersion) == -1
                         // but we don't execute updates from non existing future releases
                         && version_compare($fileVersion, $newVersion) <= 0
@@ -551,7 +565,7 @@ class Updater
      * @param array $sqlarray An array of SQL queries to be executed
      * @throws UpdaterErrorException
      */
-    static function updateDatabase($file, $sqlarray)
+    public static function updateDatabase($file, $sqlarray)
     {
         self::$activeInstance->executeMigrationQueries($file, $sqlarray);
     }

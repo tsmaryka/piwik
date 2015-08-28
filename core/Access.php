@@ -9,7 +9,7 @@
 namespace Piwik;
 
 use Exception;
-use Piwik\Db;
+use Piwik\Container\StaticContainer;
 
 /**
  * Singleton that manages user access to Piwik resources.
@@ -78,27 +78,14 @@ class Access
      */
     private $auth = null;
 
-    private static $instance = null;
-
     /**
      * Gets the singleton instance. Creates it if necessary.
+     *
+     * @return self
      */
     public static function getInstance()
     {
-        if (self::$instance == null) {
-            self::$instance = new self;
-
-            Piwik::postEvent('Access.createAccessSingleton', array(&self::$instance));
-        }
-        return self::$instance;
-    }
-
-    /**
-     * Sets the singleton instance. For testing purposes.
-     */
-    public static function setSingletonInstance($instance)
-    {
-        self::$instance = $instance;
+        return StaticContainer::get('Piwik\Access');
     }
 
     /**
@@ -215,7 +202,7 @@ class Access
         }
     }
 
-    private function loadSitesIfNeeded()
+    protected function loadSitesIfNeeded()
     {
         if ($this->hasSuperUserAccess) {
             if (empty($this->idsitesByAccess['superuser'])) {
@@ -226,7 +213,7 @@ class Access
                 }
                 $this->idsitesByAccess['superuser'] = $allSitesId;
             }
-        } else if (isset($this->login)) {
+        } elseif (isset($this->login)) {
             if (empty($this->idsitesByAccess['view'])
                 && empty($this->idsitesByAccess['admin'])) {
 

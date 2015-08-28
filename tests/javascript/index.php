@@ -18,6 +18,9 @@ function getToken() {
 function getContentToken() {
     return "<?php $token = md5(uniqid(mt_rand(), true)); echo $token; ?>";
 }
+function getHeartbeatToken() {
+    return "<?php $token = md5(uniqid(mt_rand(), true)); echo $token; ?>";
+}
 <?php
 $sqlite = false;
 if (file_exists("enable_sqlite")) {
@@ -51,6 +54,7 @@ testTrackPageViewAsync();
 }
 ?>
  </script>
+ <script src="../lib/q-1.4.1/q.js" type="text/javascript"></script>
  <script src="../../js/piwik.js?rand=<?php echo md5(uniqid(mt_rand(), true)) ?>" type="text/javascript"></script>
  <script src="../../plugins/Overlay/client/urlnormalizer.js" type="text/javascript"></script>
  <script src="piwiktest.js" type="text/javascript"></script>
@@ -206,11 +210,16 @@ function loadJash() {
      window.scroll(0, 0);
  }
 
-function triggerEvent(element, type) {
+function triggerEvent(element, type, buttonNumber) {
  if ( document.createEvent ) {
-     var event = document.createEvent( "MouseEvents" );
-     event.initMouseEvent(type, true, true, element.ownerDocument.defaultView,
-         0, 0, 0, 0, 0, false, false, false, false, 0, null);
+     if ('undefined' === (typeof buttonNumber)) {
+         buttonNumber = 0;
+     }
+
+     var event = document.createEvent( "MouseEvents" ),
+         docView = element == window ? element : element.ownerDocument.defaultView;
+     event.initMouseEvent(type, true, true, docView,
+         0, 0, 0, 0, 0, false, false, false, false, buttonNumber, null);
      element.dispatchEvent( event );
  } else if ( element.fireEvent ) {
      element.fireEvent( "on" + type );
@@ -227,7 +236,7 @@ function triggerEvent(element, type) {
      }
  }
 
- function fetchTrackedRequests(token)
+ function fetchTrackedRequests(token, parse)
  {
      var xhr = window.XMLHttpRequest ? new window.XMLHttpRequest() :
          window.ActiveXObject ? new ActiveXObject("Microsoft.XMLHTTP") :
@@ -236,7 +245,18 @@ function triggerEvent(element, type) {
      xhr.open("GET", "piwik.php?requests=" + token, false);
      xhr.send(null);
 
-     return xhr.responseText;
+     var response = xhr.responseText;
+     if (parse) {
+         var results = [];
+         $(response).filter('span').each(function (i) {
+             if (i != 0) {
+                 results.push($(this).text());
+             }
+         });
+         return results;
+     }
+
+     return response;
  }
 
  function dropCookie(cookieName, path, domain) {
@@ -364,6 +384,7 @@ function setupContentTrackingFixture(name, targetNode) {
   <iframe name="iframe5"></iframe>
   <iframe name="iframe6"></iframe>
   <iframe name="iframe7"></iframe>
+  <iframe name="iframe9"></iframe>
   <img id="image1" src=""/> <!-- Test require this empty source attribute before image2!! -->
   <img id="image2" data-content-piece src="img.jpg"/>
   <ul>
@@ -376,6 +397,7 @@ function setupContentTrackingFixture(name, targetNode) {
     <li><a id="click7" href="example.word" target="iframe7" class="piwik_download clicktest">download: explicit</a></li>
     <li><a id="click8" href="example.exe" target="iframe8" class="clicktest">no click handler</a></li>
     <li><a id="click9" href="example.html" target="iframe7" download class="clicktest">download: explicit (attribute)</a></li>
+    <li><a id="click11" href="http://example.co.nz/test-with-%F6%E4%FC/story/0" target="iframe9">outlink: containing iso-8859-1 encoded url</a></li>
   </ul>
   <div id="clickDiv"></div>
  </div>
@@ -703,7 +725,7 @@ function PiwikTest() {
         ok(actual.length > 11, "findNodesHavingAttribute, should find many elements within body");
 
         actual = query.findNodesHavingAttribute(_e('other'), 'href');
-        propEqual(actual, [_e('click1'), _e('click2'), _e('click3'), _e('click4'), _e('click5'), _e('click6'), _e('click7'), _e('click8'), _e('click9')], "findNodesHavingAttribute, should find many elements within node");
+        propEqual(actual, [_e('click1'), _e('click2'), _e('click3'), _e('click4'), _e('click5'), _e('click6'), _e('click7'), _e('click8'), _e('click9'), _e('click11')], "findNodesHavingAttribute, should find many elements within node");
 
         actual = query.findNodesHavingAttribute(_e('other'), 'anyAttribute');
         propEqual(actual, [], "findNodesHavingAttribute, should not find any such attribute within div");
@@ -1961,7 +1983,7 @@ function PiwikTest() {
         equal( typeof tracker.setConversionAttributionFirstReferrer, 'function', 'setConversionAttributionFirstReferrer' );
         equal( typeof tracker.addListener, 'function', 'addListener' );
         equal( typeof tracker.enableLinkTracking, 'function', 'enableLinkTracking' );
-        equal( typeof tracker.setHeartBeatTimer, 'function', 'setHeartBeatTimer' );
+        equal( typeof tracker.enableHeartBeatTimer, 'function', 'enableHeartBeatTimer' );
         equal( typeof tracker.killFrame, 'function', 'killFrame' );
         equal( typeof tracker.redirectFile, 'function', 'redirectFile' );
         equal( typeof tracker.setCountPreRendered, 'function', 'setCountPreRendered' );
@@ -2529,7 +2551,7 @@ function PiwikTest() {
           function link() { lastInteractionType = "link"; }
           function load() { lastInteractionType = "load"; }
           function log() { lastInteractionType = "log"; }
-          function ping() { lastInteractionType = "ping"; }
+          function ping() { lastInteractionType = "ping"; return "&dummy=1"; }
           function sitesearch() { lastInteractionType = "sitesearch"; }
           function unload() { lastInteractionType = "unload"; }
           function getLastInteractionType() { return lastInteractionType; }
@@ -2700,11 +2722,9 @@ if ($sqlite) {
     });
 
     test("tracking", function() {
-        expect(101);
+        expect(102);
 
-        /*
-         * Prevent Opera and HtmlUnit from performing the default action (i.e., load the href URL)
-         */
+        // Prevent Opera and HtmlUnit from performing the default action (i.e., load the href URL)
         var stopEvent = function (evt) {
                 evt = evt || window.event;
 
@@ -2795,14 +2815,19 @@ if ($sqlite) {
         tracker.hook.test._addEventListener(_e("click8"), "click", stopEvent);
         triggerEvent(_e("click8"), 'click');
 
-        tracker.enableLinkTracking();
+        tracker.enableLinkTracking(true);
 
         tracker.setRequestMethod("GET");
-        var buttons = new Array("click1", "click2", "click3", "click4", "click5", "click6", "click7");
+        var buttons = new Array("click1", "click2", "click3", "click4", "click5", "click6", "click7", "click11");
         for (var i=0; i < buttons.length; i++) {
             tracker.hook.test._addEventListener(_e(buttons[i]), "click", stopEvent);
             triggerEvent(_e(buttons[i]), 'click');
         }
+
+        triggerEvent(_e('click7'), 'contextmenu');
+
+        triggerEvent(_e('click7'), 'mousedown', 1);
+        triggerEvent(_e('click7'), 'mouseup', 1); // middleclick
 
         var xhr = window.XMLHttpRequest ? new window.XMLHttpRequest() :
             window.ActiveXObject ? new ActiveXObject("Microsoft.XMLHTTP") :
@@ -2989,7 +3014,7 @@ if ($sqlite) {
             xhr.open("GET", "piwik.php?requests=" + getToken(), false);
             xhr.send(null);
             results = xhr.responseText;
-            equal( (/<span\>([0-9]+)\<\/span\>/.exec(results))[1], "30", "count tracking events" );
+            equal( (/<span\>([0-9]+)\<\/span\>/.exec(results))[1], "33", "count tracking events" );
 
             // firing callback
             ok( trackLinkCallbackFired, "trackLink() callback fired" );
@@ -3006,6 +3031,7 @@ if ($sqlite) {
             ok( /example.us/.test( results ), "addListener()" );
 
             ok( /example.net/.test( results ), "setRequestMethod(GET), click: implicit outlink (by outbound URL)" );
+            ok( /example.co.nz/.test( results ), "setRequestMethod(GET), click: outlink with iso-8859-1 encoding" );
             ok( /example.html/.test( results ), "click: explicit outlink" );
             ok( /example.pdf/.test( results ), "click: implicit download (by file extension)" );
             ok( /example.word/.test( results ), "click: explicit download" );
@@ -3076,6 +3102,91 @@ if ($sqlite) {
 
             start();
         }, 5000);
+    });
+
+    // heartbeat tests
+    test("trackingHeartBeat", function () {
+        expect(14);
+
+        var tokenBase = getHeartbeatToken();
+
+        var tracker = Piwik.getTracker();
+        tracker.setTrackerUrl("piwik.php");
+        tracker.setSiteId(1);
+        tracker.enableHeartBeatTimer(3);
+
+        stop();
+        Q.delay(1).then(function () {
+            // test ping heart beat not set up until an initial request tracked
+            tracker.setCustomData('token', 1 + tokenBase);
+
+            return Q.delay(3500);
+        }).then(function () {
+            // test ping not sent on initial page load, and sent if inactive for N secs.
+            tracker.setCustomData('token', 2 + tokenBase);
+            tracker.trackPageView('whatever'); // normal request sent here
+        }).then(function () {
+            triggerEvent(window, 'focus');
+
+            return Q.delay(4000); // ping request sent after this (afterwards 2 secs to next heartbeat)
+        }).then(function () {
+            // test ping not sent after N secs, if tracking request sent in the mean time
+            tracker.setCustomData('token', 3 + tokenBase);
+
+            tracker.trackPageView('whatever2'); // normal request sent here
+            // heart beat will trigger in 2 secs, then reset to 1 sec later, since tracker request
+            // was sent 2 secs ago
+        }).then(function () {
+            return Q.delay(2100); // ping request NOT sent here (heart beat triggered. after, .9s to next heartbeat)
+        }).then(function () {
+            // test ping sent N secs after second tracking request if inactive.
+            tracker.setCustomData('token', 4 + tokenBase);
+
+            return Q.delay(2100); // ping request sent here (heart beat triggered after 1s; 2s to next heart beat)
+        }).then(function () {
+            // test ping not sent N secs after, if window blur event triggered (ie tab switch) and N secs pass.
+            tracker.setCustomData('token', 5 + tokenBase);
+
+            triggerEvent(window, 'blur');
+
+            return Q.delay(3000); // ping request not sent here (heart beat triggered after 2s; 1s to next heart beat)
+        }).then(function () {
+            // test ping sent immediately if tab switched and more than N secs pass, then tab switched back
+            tracker.setCustomData('token', 6 + tokenBase);
+
+            triggerEvent(window, 'focus'); // ping request sent here
+
+            tracker.disableHeartBeatTimer(); // flatline
+
+            return Q.delay(1000); // for the ping request to get sent
+        }).then(function () {
+            var token;
+
+            var requests = fetchTrackedRequests(token = 1 + tokenBase, true);
+            equal(requests.length, 0, "[token = 1] no requests sent before initial non-ping request sent");
+
+            requests = fetchTrackedRequests(token = 2 + tokenBase, true);
+            ok(/action_name=whatever/.test(requests[0]) && !(/ping=1/.test(requests[0])), "[token = 2] first request is page view not ping");
+            ok(/ping=1/.test(requests[1]), "[token = 2] second request is ping request");
+            equal(requests.length, 2, "[token = 2] only 2 requests sent for normal ping");
+
+            requests = fetchTrackedRequests(token = 3 + tokenBase, true);
+            ok(/action_name=whatever2/.test(requests[0]) && !(/ping=1/.test(requests[0])), "[token = 3] first request is page view not ping");
+            equal(requests.length, 1, "[token = 3] no ping request sent if other request sent in meantime");
+
+            requests = fetchTrackedRequests(token = 4 + tokenBase, true);
+            ok(/ping=1/.test(requests[0]), "[token = 4] ping request sent if no other activity and after heart beat");
+            equal(requests.length, 1, "[token = 4] only ping request sent if no other activity");
+
+            requests = fetchTrackedRequests(token = 5 + tokenBase, true);
+            equal(requests.length, 0, "[token = 5] no requests sent if window not in focus");
+
+            requests = fetchTrackedRequests(token = 6 + tokenBase, true);
+            ok(/ping=1/.test(requests[0]), "[token = 6] ping sent after window regains focus");
+            equal(requests.length, 1, "[token = 6] only one ping request sent after window regains focus");
+
+            start();
+        });
     });
 
     test("trackingContent", function() {
@@ -3557,15 +3668,14 @@ if ($sqlite) {
 
             start();
         }, 4000);
-
     });
-
     <?php
 }
 ?>
 }
 
-function addEventListener(element, eventType, eventHandler, useCapture) {
+// do not name this addEventListener so it won't overwrite the member in window
+function customAddEventListener(element, eventType, eventHandler, useCapture) {
     if (element.addEventListener) {
         element.addEventListener(eventType, eventHandler, useCapture);
         return true;
@@ -3578,7 +3688,7 @@ function addEventListener(element, eventType, eventHandler, useCapture) {
 
 (function (f) {
     if (document.addEventListener) {
-        addEventListener(document, 'DOMContentLoaded', function ready() {
+        customAddEventListener(document, 'DOMContentLoaded', function ready() {
             document.removeEventListener('DOMContentLoaded', ready, false);
             f();
         });
@@ -3603,8 +3713,9 @@ function addEventListener(element, eventType, eventHandler, useCapture) {
                 }
             }());
         }
+    } else {
+        customAddEventListener(window, 'load', f, false);
     }
-    addEventListener(window, 'load', f, false);
 })(PiwikTest);
  </script>
 

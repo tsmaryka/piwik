@@ -15,7 +15,6 @@ use Piwik\Columns\Dimension;
 use Piwik\Config as PiwikConfig;
 use Piwik\Config;
 use Piwik\Container\StaticContainer;
-use Piwik\Db;
 use Piwik\EventDispatcher;
 use Piwik\Filesystem;
 use Piwik\Log;
@@ -66,6 +65,7 @@ class Manager
     // These are always activated and cannot be deactivated
     protected $pluginToAlwaysActivate = array(
         'CoreHome',
+        'Diagnostics',
         'CoreUpdater',
         'CoreAdminHome',
         'CoreConsole',
@@ -74,29 +74,14 @@ class Manager
         'Installation',
         'SitesManager',
         'UsersManager',
+        'Intl',
         'API',
         'Proxy',
         'LanguagesManager',
+        'WebsiteMeasurable',
 
         // default Piwik theme, always enabled
         self::DEFAULT_THEME,
-    );
-
-    // Plugins bundled with core package, disabled by default
-    protected $corePluginsDisabledByDefault = array(
-        'DBStats',
-        'ExampleCommand',
-        'ExampleSettingsPlugin',
-        'ExampleUI',
-        'ExampleVisualization',
-        'ExamplePluginTemplate',
-        'ExampleTracker',
-        'ExampleReport'
-    );
-
-    // Themes bundled with core package, disabled by default
-    protected $coreThemesDisabledByDefault = array(
-        'ExampleTheme'
     );
 
     private $trackerPluginsNotToLoad = array();
@@ -141,7 +126,6 @@ class Manager
         if ($cache->contains($cacheId)) {
             $pluginsTracker = $cache->fetch($cacheId);
         } else {
-
             $this->unloadPlugins();
             $this->loadActivatedPlugins();
 
@@ -194,11 +178,6 @@ class Manager
         return $this->trackerPluginsNotToLoad;
     }
 
-    public function getCorePluginsDisabledByDefault()
-    {
-        return array_merge( $this->corePluginsDisabledByDefault, $this->coreThemesDisabledByDefault);
-    }
-
     // If a plugin hooks onto at least an event starting with "Tracker.", we load the plugin during tracker
     const TRACKER_EVENT_PREFIX = 'Tracker.';
 
@@ -224,7 +203,7 @@ class Manager
      */
     private function updatePluginsConfig($pluginsToLoad)
     {
-        $pluginsToLoad = $this->sortPluginsSameOrderAsGlobalConfig($pluginsToLoad);
+        $pluginsToLoad = $this->pluginList->sortPlugins($pluginsToLoad);
         $section = PiwikConfig::getInstance()->Plugins;
         $section['Plugins'] = $pluginsToLoad;
         PiwikConfig::getInstance()->Plugins = $section;
@@ -244,7 +223,7 @@ class Manager
 
     public function clearPluginsInstalledConfig()
     {
-        $this->updatePluginsInstalledConfig( array() );
+        $this->updatePluginsInstalledConfig(array());
         PiwikConfig::getInstance()->forceSave();
     }
 
@@ -339,14 +318,14 @@ class Manager
      */
     public function deactivatePlugin($pluginName)
     {
+        $this->clearCache($pluginName);
+
         // execute deactivate() to let the plugin do cleanups
         $this->executePluginDeactivate($pluginName);
 
         $this->unloadPluginFromMemory($pluginName);
 
         $this->removePluginFromConfig($pluginName);
-
-        $this->clearCache($pluginName);
 
         /**
          * Event triggered after a plugin has been deactivated.
@@ -668,7 +647,7 @@ class Manager
     public function isPluginBundledWithCore($name)
     {
         return $this->isPluginEnabledByDefault($name)
-        || in_array($name, $this->getCorePluginsDisabledByDefault())
+        || in_array($name, $this->pluginList->getCorePluginsDisabledByDefault())
         || $name == self::DEFAULT_THEME;
     }
 
@@ -888,9 +867,11 @@ class Manager
      */
     public static function getAllPluginsNames()
     {
+        $pluginList = StaticContainer::get('Piwik\Application\Kernel\PluginList');
+
         $pluginsToLoad = array_merge(
             self::getInstance()->readPluginsDirectory(),
-            self::getInstance()->getCorePluginsDisabledByDefault()
+            $pluginList->getCorePluginsDisabledByDefault()
         );
         $pluginsToLoad = array_values(array_unique($pluginsToLoad));
         return $pluginsToLoad;
@@ -1121,6 +1102,10 @@ class Manager
             return true;
         }
 
+        if ($plugin->isTrackerPlugin()) {
+            return true;
+        }
+
         return false;
     }
 
@@ -1238,34 +1223,66 @@ class Manager
         }
 
         try {
+            $visitDimensions = VisitDimension::getAllDimensions();
+
             foreach (VisitDimension::getDimensions($plugin) as $dimension) {
-                $this->uninstallDimension($dimension);
+                $this->uninstallDimension(VisitDimension::INSTALLER_PREFIX, $dimension, $visitDimensions);
             }
         } catch (\Exception $e) {
         }
 
         try {
+            $actionDimensions = ActionDimension::getAllDimensions();
+
             foreach (ActionDimension::getDimensions($plugin) as $dimension) {
-                $this->uninstallDimension($dimension);
+                $this->uninstallDimension(ActionDimension::INSTALLER_PREFIX, $dimension, $actionDimensions);
             }
         } catch (\Exception $e) {
         }
 
         try {
+            $conversionDimensions = ConversionDimension::getAllDimensions();
+
             foreach (ConversionDimension::getDimensions($plugin) as $dimension) {
-                $this->uninstallDimension($dimension);
+                $this->uninstallDimension(ConversionDimension::INSTALLER_PREFIX, $dimension, $conversionDimensions);
             }
         } catch (\Exception $e) {
         }
     }
 
     /**
-     * @param ConversionDimension|VisitDimension|ActionDimension $dimension
+     * @param VisitDimension|ActionDimension|ConversionDimension $dimension
+     * @param VisitDimension[]|ActionDimension[]|ConversionDimension[] $allDimensions
+     * @return bool
      */
-    private function uninstallDimension(Dimension $dimension)
+    private function doesAnotherPluginDefineSameColumnWithDbEntry($dimension, $allDimensions)
     {
-        $dimension->uninstall();
-        Option::delete('version_' . $dimension->getVersion());
+        $module = $dimension->getModule();
+        $columnName = $dimension->getColumnName();
+
+        foreach ($allDimensions as $dim) {
+            if ($dim->getColumnName() === $columnName &&
+                $dim->hasColumnType() &&
+                $dim->getModule() !== $module) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param string $prefix column installer prefix
+     * @param ConversionDimension|VisitDimension|ActionDimension $dimension
+     * @param VisitDimension[]|ActionDimension[]|ConversionDimension[] $allDimensions
+     */
+    private function uninstallDimension($prefix, Dimension $dimension, $allDimensions)
+    {
+        if (!$this->doesAnotherPluginDefineSameColumnWithDbEntry($dimension, $allDimensions)) {
+            $dimension->uninstall();
+
+            $this->removeInstalledVersionFromOptionTable($prefix . $dimension->getColumnName());
+        }
     }
 
     /**
@@ -1278,9 +1295,10 @@ class Manager
         return in_array($pluginName, $pluginsInstalled);
     }
 
-    private function removeInstalledVersionFromOptionTable($version)
+    private function removeInstalledVersionFromOptionTable($name)
     {
-        Option::delete('version_' . $version);
+        $updater = new Updater();
+        $updater->markComponentSuccessfullyUninstalled($name);
     }
 
     private function makeSureOnlyActivatedPluginsAreLoaded()
@@ -1309,7 +1327,7 @@ class Manager
     protected function isPluginEnabledByDefault($name)
     {
         $pluginsBundledWithPiwik = $this->getPluginsFromGlobalIniConfigFile();
-        if(empty($pluginsBundledWithPiwik)) {
+        if (empty($pluginsBundledWithPiwik)) {
             return false;
         }
         return in_array($name, $pluginsBundledWithPiwik);
@@ -1326,29 +1344,8 @@ class Manager
             $pluginsToLoad = array_merge($pluginsToLoad, $this->pluginToAlwaysActivate);
         }
         $pluginsToLoad = array_unique($pluginsToLoad);
-        $pluginsToLoad = $this->sortPluginsSameOrderAsGlobalConfig($pluginsToLoad);
+        $pluginsToLoad = $this->pluginList->sortPlugins($pluginsToLoad);
         return $pluginsToLoad;
-    }
-
-    private function sortPluginsSameOrderAsGlobalConfig(array $plugins)
-    {
-        $global = $this->getPluginsFromGlobalIniConfigFile();
-        if(empty($global)) {
-            return $plugins;
-        }
-        $global = array_values($global);
-        $plugins = array_values($plugins);
-
-        $defaultPluginsLoadedFirst = array_intersect($global, $plugins);
-
-        $otherPluginsToLoadAfterDefaultPlugins = array_diff($plugins, $defaultPluginsLoadedFirst);
-
-        // sort by name to have a predictable order for those extra plugins
-        sort($otherPluginsToLoadAfterDefaultPlugins);
-
-        $sorted = array_merge($defaultPluginsLoadedFirst, $otherPluginsToLoadAfterDefaultPlugins);
-
-        return $sorted;
     }
 
     public function loadPluginTranslations()

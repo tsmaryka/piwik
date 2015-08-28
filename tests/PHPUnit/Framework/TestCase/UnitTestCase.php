@@ -9,11 +9,13 @@
 namespace Piwik\Tests\Framework\TestCase;
 
 use Piwik\Application\Environment;
-use Piwik\EventDispatcher;
 use Piwik\Tests\Framework\Mock\File;
 
 /**
- * Base class for Unit tests.
+ * Base class for Unit tests. Use this if you need to use the DI container in tests. It will be created fresh
+ * before each test.
+ *
+ * @deprecated Unit tests don't need no environment.
  *
  * @since 2.10.0
  */
@@ -39,7 +41,7 @@ abstract class UnitTestCase extends \PHPUnit_Framework_TestCase
 
         // make sure the global container exists for the next test case that is executed (since logging can be done
         // before a test sets up an environment)
-        $nextTestEnviornment = new Environment('test', array(), $postBootstrappedEvent = false);
+        $nextTestEnviornment = new Environment($environment = null, array(), $postBootstrappedEvent = false);
         $nextTestEnviornment->init();
 
         parent::tearDown();
@@ -57,7 +59,7 @@ abstract class UnitTestCase extends \PHPUnit_Framework_TestCase
 
     protected function initEnvironment()
     {
-        $this->environment = new Environment('test', $this->provideContainerConfig(), $postBootstrappedEvent = false);
+        $this->environment = new Environment($environment = null, $this->provideContainerConfig(), $postBootstrappedEvent = false);
         $this->environment->init();
     }
 }

@@ -8,7 +8,7 @@
  */
 
 // required modules
-var config = require("./../../UI/config.dist");
+config = require("./../../UI/config.dist");
 try {
     var localConfig = require("./../../UI/config");
 } catch (e) {
@@ -51,7 +51,8 @@ resemble.outputSettings({
         alpha: 125
     },
     errorType: 'movement',
-    transparency: 0.3
+    transparency: 0.3,
+    largeImageThreshold: 20000
 });
 
 // run script

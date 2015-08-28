@@ -31,13 +31,13 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
 
     beforeEach(function () {
         delete testEnvironment.configOverride;
-        testEnvironment.testUseRegularAuth = 0;
+        testEnvironment.testUseMockAuth = 1;
         testEnvironment.save();
     });
 
     after(function () {
         delete testEnvironment.queryParamOverride;
-        testEnvironment.testUseRegularAuth = 0;
+        testEnvironment.testUseMockAuth = 1;
         testEnvironment.save();
     });
 
@@ -333,6 +333,20 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
         }, done);
     });
 
+    // Do not allow API response to be displayed
+    it('should not allow to widgetize an API call', function (done) {
+        expect.screenshot('widgetize_apidisallowed').to.be.capture(function (page) {
+            page.load("?" + widgetizeParams + "&" + generalParams + "&moduleToWidgetize=API&actionToWidgetize=index&method=SitesManager.getImageTrackingCode&piwikUrl=test");
+        }, done);
+    });
+
+    it('should not display API response in the content', function (done) {
+        expect.screenshot('menu_apidisallowed').to.be.captureSelector('#content', function (page) {
+            page.load("?" + urlBase + "#" + generalParams + "&module=API&action=SitesManager.getImageTrackingCode");
+        }, done);
+    });
+
+    // Ecommerce
     it('should load the ecommerce overview page', function (done) {
         expect.screenshot('ecommerce_overview').to.be.captureSelector('.pageWrap,.expandDataTableFooterDrawer', function (page) {
             page.load("?" + urlBase + "#" + generalParams + "&module=Ecommerce&action=ecommerceReport&idGoal=ecommerceOrder");
@@ -362,7 +376,7 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
         expect.screenshot('admin_manage_websites').to.be.captureSelector('#content', function (page) {
             page.load("?" + generalParams + "&module=SitesManager&action=index");
             page.evaluate(function () {
-                $('.ui-inline-help:contains(UTC time is)').hide();
+                $('.form-help:contains(UTC time is)').hide();
             });
         }, done);
     });
@@ -593,10 +607,12 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
     // opt out page
     it('should load the opt out page correctly', function (done) {
         expect.screenshot('opt_out').to.be.capture(function (page) {
-            testEnvironment.testUseRegularAuth = 1;
+            testEnvironment.testUseMockAuth = 0;
             testEnvironment.save();
 
             page.load("?module=CoreAdminHome&action=optOut&language=en");
         }, done);
     });
+
+
 });

@@ -248,7 +248,6 @@ abstract class Action
     public function getIdActionName()
     {
         if (!isset($this->actionIdsCached['idaction_name'])) {
-
             return false;
         }
 
@@ -302,7 +301,6 @@ abstract class Action
             $value = $dimension->onLookupAction($this->request, $this);
 
             if (false !== $value) {
-
                 if (is_float($value)) {
                     $value = Common::forceDotAsSeparatorForDecimalPoint($value);
                 }
@@ -359,7 +357,6 @@ abstract class Action
             $value = $dimension->onNewAction($this->request, $visitor, $this);
 
             if ($value !== false) {
-
                 if (is_float($value)) {
                     $value = Common::forceDotAsSeparatorForDecimalPoint($value);
                 }
@@ -402,9 +399,12 @@ abstract class Action
         /**
          * Triggered after successfully persisting a [visit action entity](/guides/persistence-and-the-mysql-backend#visit-actions).
          *
+         * This event is deprecated, use [Dimensions](http://developer.piwik.org/guides/dimensions) instead.
+         *
          * @param Action $tracker Action The Action tracker instance.
          * @param array $visitAction The visit action entity that was persisted. Read
          *                           [this](/guides/persistence-and-the-mysql-backend#visit-actions) to see what it contains.
+         * @deprecated
          */
         Piwik::postEvent('Tracker.recordAction', array($trackerAction = $this, $visitAction));
     }
