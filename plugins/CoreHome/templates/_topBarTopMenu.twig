@@ -1,4 +1,3 @@
-{% if hasSomeAdminAccess %}
 <div id="topRightBar">
 
     {% macro topMenuItem(label, menu, currentModule, currentAction) %}
@@ -29,11 +28,12 @@
     {% endif %}
 
     {% for label,menu in topMenu %}
-        {% if not loop.first %}
-                |
-        {% endif %}
-        {{ _self.topMenuItem(label, menu, topMenuModule, topMenuAction) }}
+	{% if hasSomeAdminAccess or menu._url.module == "MultiSites" or menu._url.module == 'CoreHome' %}
+		{% if not loop.first %}
+               		 |
+	        {% endif %}
+		{{ _self.topMenuItem(label, menu, topMenuModule, topMenuAction) }}
+	{% endif %}
     {% endfor %}
 
 </div>
-{% endif %}
