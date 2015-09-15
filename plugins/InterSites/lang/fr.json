@@ -1,0 +1,16 @@
+{
+    "InterSites": {
+        "PleasSupplyAtLeastTwoDifferentSites": "Veuillez choisir au moins deux sites web différents.",
+        "SharedVisitors": "Visiteurs partagés",
+        "CommonVisitorsToolIntro": "Découvrez combien de visiteurs ont visité tous les sites web suivants",
+        "CommonVisitorsTool_SiteStatsDesc": "%s de %s visiteurs ont visité tous les sites web",
+        "CommonVisitorsTool_SiteStatsNoVisits": "Il n'y a eu aucun visiteur durant cette période pour %s",
+        "CommonVisitorsTool_AllSitesStatsDesc": "%s visiteurs sur un total de %s (%s) ont visité les sites web",
+        "CommonVisitorsTool_AllSitesNoVisits": "Il n'y a aucune visite pour cette période",
+        "CommonVisitorsTool_LaunchLinkText": "Nombre de visiteurs qui ont visité plusieurs sites web",
+        "Go": "Aller",
+        "AddSite": "Ajouter site",
+        "None": "aucun",
+        "MetricProcessingMethodNotification": "Les métriques de visiteurs partagés sont analysées dans le fuseau horaire UTC pour la date sélectionnée."
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "name": "InterSites",
+    "version": "0.2.3",
+    "description": "Analyze how many visitors navigate between your websites.",
+    "theme": false,
+    "require": {
+        "piwik": ">=2.11.0"
+    },
+    "authors": [
+        {
+            "name": "Piwik PRO",
+            "email": "contact@piwik.pro",
+            "homepage": "http://piwik.pro"
+        }
+    ],
+    "license": "GPL v3+",
+    "keywords": ["common visitors", "across websites"],
+    "homepage": "http://piwik.pro"
+}

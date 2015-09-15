@@ -1,0 +1,15 @@
+{
+    "InterSites": {
+        "PleasSupplyAtLeastTwoDifferentSites": "Vælg mindst to forskellige hjemmesider.",
+        "SharedVisitors": "Delte besøgende",
+        "CommonVisitorsToolIntro": "Find antallet af besøgende, der besøgte alle de følgende websteder",
+        "CommonVisitorsTool_SiteStatsDesc": "%s af %s besøgende besøgte alle hjemmesider",
+        "CommonVisitorsTool_SiteStatsNoVisits": "Der var ingen besøgende til %s i denne periode",
+        "CommonVisitorsTool_AllSitesStatsDesc": "%s besøgende ud af i alt %s (%s) besøgte hjemmesiderne",
+        "CommonVisitorsTool_AllSitesNoVisits": "Der er ingen besøg for denne periode",
+        "CommonVisitorsTool_LaunchLinkText": "Antal besøgende, der kiggede på flere websteder",
+        "Go": "Start",
+        "AddSite": "Tilføj websted",
+        "None": "Ingen"
+    }
+}

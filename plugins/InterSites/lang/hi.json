@@ -1,0 +1,13 @@
+{
+    "InterSites": {
+        "PleasSupplyAtLeastTwoDifferentSites": "कम से कम दो अलग अलग वेबसाइटों का चयन करें।",
+        "SharedVisitors": "साझा आगंतुक",
+        "CommonVisitorsToolIntro": "निम्नलिखित वेबसाइटों के सभी दौरा किया जो आगंतुकों की संख्या का पता लगाएं",
+        "CommonVisitorsTool_SiteStatsDesc": "%s आगंतुकों का %s वेबसाइटों के सभी दौरा किया",
+        "CommonVisitorsTool_AllSitesNoVisits": "इस अवधि के लिए कोई यात्राओं कर रहे हैं",
+        "CommonVisitorsTool_LaunchLinkText": "कई वेबसाइटों को देखने वाले आगंतुकों की संख्या",
+        "Go": "जाना",
+        "AddSite": "साइट जोड़ें",
+        "None": "कोई नहीं"
+    }
+}

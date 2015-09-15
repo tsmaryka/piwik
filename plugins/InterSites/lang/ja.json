@@ -1,0 +1,15 @@
+{
+    "InterSites": {
+        "PleasSupplyAtLeastTwoDifferentSites": "少なくとも2つの異なるウエブサイトを選択してください。",
+        "SharedVisitors": "共通の訪問者",
+        "CommonVisitorsToolIntro": "以下のウェブサイトをすべて訪問したビジターの数を割り出す",
+        "CommonVisitorsTool_SiteStatsDesc": "%s のビジターのうちの %s はすべてのウェブサイトを訪問",
+        "CommonVisitorsTool_SiteStatsNoVisits": "%s の訪問者はこの期間全くいませんでした。",
+        "CommonVisitorsTool_AllSitesStatsDesc": "%s (%s) ビジター中、 %s ビジターがウェブサイトを閲覧",
+        "CommonVisitorsTool_AllSitesNoVisits": "この期間のビジターはありません",
+        "CommonVisitorsTool_LaunchLinkText": "いくつかのウェブサイトを見たビジターの数",
+        "Go": "Go",
+        "AddSite": "サイトの追加",
+        "None": "なし"
+    }
+}
