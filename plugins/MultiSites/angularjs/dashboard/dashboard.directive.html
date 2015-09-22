@@ -8,7 +8,7 @@
               ng-bind-html="'General_TotalVisitsPageviewsRevenue' | translate:('<strong>'+model.totalVisits+'</strong>'):('<strong>'+model.totalActions+'</strong>')">
         </span>	
     </h2>
-    <h3>{{ dateSparkline == "last7" && "Stats for the last 7 days" || "" }}</h3>
+    <h3>{{ dateSparkline == "last7" && "Stats for the last 7 days" || "" }} {{ period == "week" && "Stats for the current week, beginning Monday" || "" }} {{ period == "month" && "Stats for the month" || "" }} </h3>
     <table id="mt" class="dataTable" cellspacing="0">
         <thead>
         <tr>
