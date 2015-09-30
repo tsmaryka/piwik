@@ -72,6 +72,9 @@ class InterSites extends \Piwik\Plugin
         $keys[] = "InterSites_Go";
         $keys[] = "InterSites_AddSite";
         $keys[] = "InterSites_None";
+<<<<<<< HEAD
         $keys[] = "InterSites_MetricProcessingMethodNotification";
+=======
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
     }
 }

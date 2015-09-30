@@ -31,8 +31,11 @@ class DistinctMetricsAggregator
      * a set of sites and the number of unique visitors that visited all of the sites
      * in the set.
      *
+<<<<<<< HEAD
      * Comparison is done in dates for the UTC time, not for the site specific time.
      *
+=======
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
      * Performance: The SQL query this method executes was tested on a Piwik instance
      *              with 13 million visits total. Computing data for 4 sites with no
      *              date limit took 13s to complete.
@@ -67,11 +70,15 @@ class DistinctMetricsAggregator
                . Common::getSqlStringFieldsArray($idSites) . ')';
         $orderBy = false;
         $groupBy = 'config_id';
+<<<<<<< HEAD
 
         $startDateTime = new \DateTime($startDate->toString());
         $endDateTime = new \DateTime($endDate->toString());
 
         $bind = array_merge(array($startDateTime->format("Y-m-d 00:00:00"), $endDateTime->format("Y-m-d 23:59:59")), $idSites);
+=======
+        $bind = array_merge(array($startDate->toString(), $endDate->toString()), $idSites);
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $innerQuery = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy);
 

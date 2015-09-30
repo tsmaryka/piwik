@@ -72,7 +72,11 @@ angular.module('piwikApp').controller('InterSitesCompareVisitorsTool', function 
 
             // if the site IDs are all the same, the API will just return one number
             if (!(sitesTotalVisits instanceof Array)) {
+<<<<<<< HEAD
                 var visitors = sitesTotalVisits,
+=======
+                var visitors = siteTotalVisits,
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
                     siteTotalVisits = {};
                 siteTotalVisits[siteIds[0]] = {nb_uniq_visitors: visitors};
             }

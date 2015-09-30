@@ -5,7 +5,11 @@
  * @link http://piwik.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+<<<<<<< HEAD
 namespace Piwik\Plugins\InterSites\tests\Fixtures;
+=======
+namespace Piwik\Plugins\InterSites\Tests\Fixtures;
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
 use Piwik\Date;
 use Piwik\Db;
@@ -82,83 +86,151 @@ class ThreeSitesWithSharedVisitors extends Fixture
         $visitor1->setIdSite($this->idSite);
         $visitor1->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor1->setUrl('http://kilamanjaro.org/kibo');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor1->doTrackPageView("page title"));
 
         $visitor1->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
         $visitor1->setUrl('http://ellsworth.org/vinsonmassif');
         Fixture::checkResponse($visitor1->doTrackPageView("page title"));
+=======
+        $visitor1->doTrackPageView("page title");
+
+        $visitor1->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
+        $visitor1->setUrl('http://ellsworth.org/vinsonmassif');
+        $visitor1->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor2->setIdSite($this->idSite);
         $visitor2->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor2->setUrl('http://himalayas.org/everest');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor2->doTrackPageView("page title"));
+=======
+        $visitor2->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor4->setIdSite($this->idSite);
         $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor4->setUrl('http://caucasus.org/elbrus');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor4->doTrackPageView("page title"));
 
         $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
         $visitor4->setUrl('http://alaskarange.org/mckinley');
         Fixture::checkResponse($visitor4->doTrackPageView("page title"));
+=======
+        $visitor4->doTrackPageView("page title");
+
+        $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
+        $visitor4->setUrl('http://alaskarange.org/mckinley');
+        $visitor4->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor5->setIdSite($this->idSite);
         $visitor5->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor5->setUrl('http://andes.org/aconcagua');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor5->doTrackPageView("page title"));
 
         $visitor5->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
         $visitor5->setUrl('http://bigben.org/mawson');
         Fixture::checkResponse($visitor5->doTrackPageView("page title"));
+=======
+        $visitor5->doTrackPageView("page title");
+
+        $visitor5->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
+        $visitor5->setUrl('http://bigben.org/mawson');
+        $visitor5->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         // visits to site 2 (1 from visitor1, 2 from visitor2, 1 from visitor4)
         $visitor1->setIdSite($this->idSite1);
         $visitor1->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor1->setUrl('http://janmayen.org/beerenberg');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor1->doTrackPageView("page title"));
+=======
+        $visitor1->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor2->setIdSite($this->idSite1);
         $visitor2->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor2->setUrl('http://saotome.org/picodesaotome');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor2->doTrackPageView("page title"));
 
         $visitor2->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
         $visitor2->setUrl('http://serradosorgaos.org/dedodedeus');
         Fixture::checkResponse($visitor2->doTrackPageView("page title"));
+=======
+        $visitor2->doTrackPageView("page title");
+
+        $visitor2->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
+        $visitor2->setUrl('http://serradosorgaos.org/dedodedeus');
+        $visitor2->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor4->setIdSite($this->idSite1);
         $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor4->setUrl('http://sumatra.org/gunungleuser');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor4->doTrackPageView("page title"));
+=======
+        $visitor4->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         // visits to site 3 (1 from visitor1, 2 from visitor3, 2 from visitor4, 1 from visitor5)
         $visitor1->setIdSite($this->idSite2);
         $visitor1->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor1->setUrl('http://victoria.org/feathertop');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor1->doTrackPageView("page title"));
+=======
+        $visitor1->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor3->setIdSite($this->idSite2);
         $visitor3->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor3->setUrl('http://cordilleracentral.org/volcanirazu');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor3->doTrackPageView("page title"));
 
         $visitor3->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
         $visitor3->setUrl('http://cascaderange.org/brokentop');
         Fixture::checkResponse($visitor3->doTrackPageView("page title"));
+=======
+        $visitor3->doTrackPageView("page title");
+
+        $visitor3->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
+        $visitor3->setUrl('http://cascaderange.org/brokentop');
+        $visitor3->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor4->setIdSite($this->idSite2);
         $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor4->setUrl('http://watkinsrange.org/gunnbjorn');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor4->doTrackPageView("page title"));
 
         $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
         $visitor4->setUrl('http://niut.org/razorback');
         Fixture::checkResponse($visitor4->doTrackPageView("page title"));
+=======
+        $visitor4->doTrackPageView("page title");
+
+        $visitor4->setForceVisitDateTime(Date::factory($this->dateTime)->addHour(1)->getDatetime());
+        $visitor4->setUrl('http://niut.org/razorback');
+        $visitor4->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
         $visitor5->setIdSite($this->idSite2);
         $visitor5->setForceVisitDateTime(Date::factory($this->dateTime)->getDatetime());
         $visitor5->setUrl('http://stikineicecap.org/katesneedle');
+<<<<<<< HEAD
         Fixture::checkResponse($visitor5->doTrackPageView("page title"));
+=======
+        $visitor5->doTrackPageView("page title");
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
     }
 
     /**

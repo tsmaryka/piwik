@@ -9,7 +9,11 @@
 
 describe("CompareCommonVisitors", function () {
     this.timeout(0);
+<<<<<<< HEAD
     this.fixture = "Piwik\\Plugins\\InterSites\\tests\\Fixtures\\ThreeSitesWithSharedVisitors";
+=======
+    this.fixture = "Piwik\\Plugins\\InterSites\\Tests\\Fixtures\\ThreeSitesWithSharedVisitors";
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 
     var url = "?module=MultiSites&action=index&idSite=1&period=month&date=2010-03-06";
 

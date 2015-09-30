@@ -8,7 +8,11 @@
 namespace Piwik\Plugins\InterSites\tests\System;
 
 use Piwik\Date;
+<<<<<<< HEAD
 use Piwik\Plugins\InterSites\tests\Fixtures\ThreeSitesWithSharedVisitors;
+=======
+use Piwik\Plugins\InterSites\Tests\Fixtures\ThreeSitesWithSharedVisitors;
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
 
 /**
@@ -28,7 +32,11 @@ class ApiTest extends SystemTestCase
         $this->assertApiResponseEqualsExpected("InterSites.getCommonVisitors", array(
             'idSite' => 'all',
             'date' => Date::factory(self::$fixture->dateTime)->toString(),
+<<<<<<< HEAD
             'period' => array('day', 'week', 'month'),
+=======
+            'period' => 'month',
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
         ));
     }
 
@@ -37,7 +45,11 @@ class ApiTest extends SystemTestCase
         $this->assertApiResponseEqualsExpected("InterSites.getCommonVisitors", array(
             'idSite' => 1,
             'date' => Date::factory(self::$fixture->dateTime)->toString(),
+<<<<<<< HEAD
             'period' => array('day', 'week', 'month')
+=======
+            'period' => 'month'
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
         ));
     }
 
@@ -46,7 +58,11 @@ class ApiTest extends SystemTestCase
         $this->assertApiResponseEqualsExpected("InterSites.getCommonVisitors", array(
             'idSite' => '1,2',
             'date' => Date::factory(self::$fixture->dateTime)->toString(),
+<<<<<<< HEAD
             'period' => array('day', 'week', 'month'),
+=======
+            'period' => 'month',
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
             'segment' => 'city==Järvenpää'
         ));
     }
@@ -57,4 +73,8 @@ class ApiTest extends SystemTestCase
     }
 }
 
+<<<<<<< HEAD
 ApiTest::$fixture = new ThreeSitesWithSharedVisitors();
+=======
+ApiTest::$fixture = new ThreeSitesWithSharedVisitors();
+>>>>>>> 87f4508d47e83bf183574adda233e26a5847d868
