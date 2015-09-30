@@ -12,13 +12,6 @@ use Piwik\Piwik;
 
 class MultiSites extends \Piwik\Plugin
 {
-    public function getInformation()
-    {
-        $info = parent::getInformation();
-        $info['authors'] = array(array('name' => 'Piwik PRO', 'homepage' => 'http://piwik.pro'));
-        return $info;
-    }
-
     /**
      * @see Piwik\Plugin::getListHooksRegistered
      */
@@ -54,8 +47,7 @@ class MultiSites extends \Piwik\Plugin
         $translations[] = 'General_ColumnNbVisits';
         $translations[] = 'General_ColumnPageviews';
         $translations[] = 'General_ColumnRevenue';
-		$translations[] = 'General_TotalVisitsPageviews';
-        $translations[] = 'General_TotalVisitsPageviewsRevenue';
+        $translations[] = 'General_TotalVisitsPageviewsActions';
         $translations[] = 'General_EvolutionSummaryGeneric';
         $translations[] = 'General_AllWebsitesDashboard';
         $translations[] = 'General_NVisits';

@@ -11,7 +11,6 @@ namespace Piwik;
 use Exception;
 use Piwik\DataAccess\TableMetadata;
 use Piwik\Db\Adapter;
-use Piwik\Tracker;
 
 /**
  * Contains SQL related helper functions for Piwik's MySQL database.
@@ -34,6 +33,8 @@ use Piwik\Tracker;
  */
 class Db
 {
+    const SQL_MODE = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_AUTO_VALUE_ON_ZERO,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE';
+
     private static $connection = null;
 
     private static $logQueries = true;

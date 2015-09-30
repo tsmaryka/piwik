@@ -21,6 +21,7 @@ use Piwik\Period\Factory as PeriodFactory;
 use Piwik\CronArchive\SitesToReprocessDistributedList;
 use Piwik\CronArchive\SegmentArchivingRequestUrlProvider;
 use Piwik\Plugins\CoreAdminHome\API as CoreAdminHomeAPI;
+use Piwik\Plugins\SegmentEditor\Model as SegmentEditorModel;
 use Piwik\Plugins\SitesManager\API as APISitesManager;
 use Piwik\Plugins\UsersManager\API as APIUsersManager;
 use Piwik\Plugins\UsersManager\UserPreferences;
@@ -189,6 +190,19 @@ class CronArchive
      */
     public $concurrentRequestsPerWebsite = false;
 
+    /**
+     * List of segment strings to force archiving for. If a stored segment is not in this list, it will not
+     * be archived.
+     *
+     * @var string[]
+     */
+    public $segmentsToForce = array();
+
+    /**
+     * @var bool
+     */
+    public $disableSegmentsArchiving = false;
+
     private $websitesWithVisitsSinceLastRun = 0;
     private $skippedPeriodsArchivesWebsite = 0;
     private $skippedDayArchivesWebsites = 0;
@@ -207,6 +221,13 @@ class CronArchive
      * @var LoggerInterface
      */
     private $logger;
+
+    /**
+     * Only used when archiving using HTTP requests.
+     *
+     * @var string
+     */
+    private $urlToPiwik = null;
 
     /**
      * Returns the option name of the option that stores the time core:archive was last executed.
@@ -277,6 +298,8 @@ class CronArchive
         if ($this->websites->getInitialSiteIds() != $websitesIds) {
             $this->logger->info('Will ignore websites and help finish a previous started queue instead. IDs: ' . implode(', ', $this->websites->getInitialSiteIds()));
         }
+
+        $this->logForcedSegmentInfo();
 
         /**
          * This event is triggered after a CronArchive instance is initialized.
@@ -394,6 +417,26 @@ class CronArchive
         throw new Exception($m);
     }
 
+    /**
+     * @param int[] $idSegments
+     */
+    public function setSegmentsToForceFromSegmentIds($idSegments)
+    {
+        /** @var SegmentEditorModel $segmentEditorModel */
+        $segmentEditorModel = StaticContainer::get('Piwik\Plugins\SegmentEditor\Model');
+        $segments = $segmentEditorModel->getAllSegmentsAndIgnoreVisibility();
+
+        $segments = array_filter($segments, function ($segment) use ($idSegments) {
+            return in_array($segment['idsegment'], $idSegments);
+        });
+
+        $segments = array_map(function ($segment) {
+            return $segment['definition'];
+        }, $segments);
+
+        $this->segmentsToForce = $segments;
+    }
+
     public function runScheduledTasks()
     {
         $this->logSection("SCHEDULED TASKS");
@@ -403,6 +446,14 @@ class CronArchive
             return;
         }
 
+        // TODO: this is a HACK to get the purgeOutdatedArchives task to work when run below. without
+        //       it, the task will not run because we no longer run the tasks through CliMulti.
+        //       harder to implement alternatives include:
+        //       - moving CronArchive logic to DI and setting a flag in the class when the whole process
+        //         runs
+        //       - setting a new DI environment for core:archive which CoreAdminHome can use to conditionally
+        //         enable/disable the task
+        $_GET['trigger'] = 'archivephp';
         CoreAdminHomeAPI::getInstance()->runScheduledTasks();
 
         $this->logSection("");
@@ -493,7 +544,7 @@ class CronArchive
 
         try {
             $shouldProceed = $this->processArchiveDays($idSite, $lastTimestampWebsiteProcessedDay, $shouldArchivePeriods, $timerWebsite);
-        } catch(UnexpectedWebsiteFoundException $e) {
+        } catch (UnexpectedWebsiteFoundException $e) {
             // this website was deleted in the meantime
             $shouldProceed = false;
             $this->logger->info("Skipped website id $idSite, got: UnexpectedWebsiteFoundException, " . $timerWebsite->__toString());
@@ -519,9 +570,9 @@ class CronArchive
             Option::set($this->lastRunKey($idSite, "periods"), time());
         }
 
-        if(!$success) {
+        if (!$success) {
             // cancel marking the site as reprocessed
-            if($websiteInvalidatedShouldReprocess) {
+            if ($websiteInvalidatedShouldReprocess) {
                 $store = new SitesToReprocessDistributedList();
                 $store->add($idSite);
             }
@@ -550,7 +601,6 @@ class CronArchive
         $success = true;
 
         foreach (array('week', 'month', 'year') as $period) {
-
             if (!$this->shouldProcessPeriod($period)) {
                 // if any period was skipped, we do not mark the Periods archiving as successful
                 $success = false;
@@ -578,8 +628,9 @@ class CronArchive
     private function getVisitsRequestUrl($idSite, $period, $date, $segment = false)
     {
         $request = "?module=API&method=API.get&idSite=$idSite&period=$period&date=" . $date . "&format=php";
-        if($segment) {
-            $request .= '&segment=' . urlencode($segment);;
+        if ($segment) {
+            $request .= '&segment=' . urlencode($segment);
+            ;
         }
         return $request;
     }
@@ -636,7 +687,7 @@ class CronArchive
         $date = $this->getApiDateParameter($idSite, "day", $processDaysSince);
         $url = $this->getVisitsRequestUrl($idSite, "day", $date);
 
-        $this->logArchiveWebsite($idSite, "day");
+        $this->logArchiveWebsite($idSite, "day", $date);
 
         $content = $this->request($url);
         $daysResponse = @unserialize($content);
@@ -649,7 +700,7 @@ class CronArchive
             Option::set($this->lastRunKey($idSite, "day"), 0);
 
             // cancel marking the site as reprocessed
-            if($websiteInvalidatedShouldReprocess) {
+            if ($websiteInvalidatedShouldReprocess) {
                 $store = new SitesToReprocessDistributedList();
                 $store->add($idSite);
             }
@@ -727,11 +778,11 @@ class CronArchive
         // already processed above for "day"
         if ($period != "day") {
             $urls[] = $url;
-            $this->logArchiveWebsite($idSite, $period);
+            $this->logArchiveWebsite($idSite, $period, $date);
         }
 
         $segmentRequestsCount = 0;
-        if($archiveSegments) {
+        if ($archiveSegments) {
             $urlsWithSegment = $this->getUrlsWithSegment($idSite, $period, $date);
             $urls = array_merge($urls, $urlsWithSegment);
             $segmentRequestsCount = count($urlsWithSegment);
@@ -742,7 +793,7 @@ class CronArchive
 
         $this->requests += count($urls);
 
-        $cliMulti = new CliMulti();
+        $cliMulti = $this->makeCliMulti();
         $cliMulti->setAcceptInvalidSSLCertificate($this->acceptInvalidSSLCertificate);
         $cliMulti->setConcurrentProcessesLimit($this->getConcurrentRequestsPerWebsite());
         $cliMulti->runAsSuperUser();
@@ -753,13 +804,12 @@ class CronArchive
             $success = $success && $this->checkResponse($content, $url);
 
             if ($noSegmentUrl === $url && $success) {
-
                 $stats = @unserialize($content);
                 if (!is_array($stats)) {
                     $this->logError("Error unserializing the following response from $url: " . $content);
                 }
 
-                if($period == 'range') {
+                if ($period == 'range') {
                     // range returns one dataset (the sum of data between the two dates),
                     // whereas other periods return lastN which is N datasets in an array. Here we make our period=range dataset look like others:
                     $stats = array($stats);
@@ -826,14 +876,12 @@ class CronArchive
         }
 
         try {
-
-            $cliMulti  = new CliMulti();
+            $cliMulti  = $this->makeCliMulti();
             $cliMulti->setAcceptInvalidSSLCertificate($this->acceptInvalidSSLCertificate);
             $cliMulti->runAsSuperUser();
             $responses = $cliMulti->request(array($url));
 
             $response  = !empty($responses) ? array_shift($responses) : null;
-
         } catch (Exception $e) {
             return $this->logNetworkError($url, $e->getMessage());
         }
@@ -874,7 +922,7 @@ class CronArchive
                 // there was a previous successful run
                 $this->shouldArchiveOnlySitesWithTrafficSince = time() - $this->lastSuccessRunTimestamp;
             }
-        }  else {
+        } else {
             // force-all-periods is set here
             $this->archiveAndRespectTTL = false;
 
@@ -996,7 +1044,7 @@ class CronArchive
     {
         $sitesIdWithVisits = APISitesManager::getInstance()->getSitesIdWithVisits(time() - $this->shouldArchiveOnlySitesWithTrafficSince);
         $websiteIds = !empty($sitesIdWithVisits) ? ", IDs: " . implode(", ", $sitesIdWithVisits) : "";
-        $prettySeconds = $this->formatter->getPrettyTimeFromSeconds( $this->shouldArchiveOnlySitesWithTrafficSince, true);
+        $prettySeconds = $this->formatter->getPrettyTimeFromSeconds($this->shouldArchiveOnlySitesWithTrafficSince, true);
         $this->logger->info("- Will process " . count($sitesIdWithVisits) . " websites with new visits since "
             . $prettySeconds
             . " "
@@ -1155,7 +1203,7 @@ class CronArchive
         }
 
         $visits = 0;
-        foreach($stats as $metrics) {
+        foreach ($stats as $metrics) {
             if (empty($metrics['nb_visits'])) {
                 continue;
             }
@@ -1344,10 +1392,10 @@ class CronArchive
     private function getCustomDateRangeToPreProcess($idSite)
     {
         static $cache = null;
-        if(is_null($cache)) {
+        if (is_null($cache)) {
             $cache = $this->loadCustomDateRangeToPreProcess();
         }
-        if(empty($cache[$idSite])) {
+        if (empty($cache[$idSite])) {
             return array();
         }
         $dates = array_unique($cache[$idSite]);
@@ -1370,7 +1418,6 @@ class CronArchive
         ));
 
         foreach ($allUsersPreferences as $userLogin => $userPreferences) {
-
             if (!isset($userPreferences[APIUsersManager::PREFERENCE_DEFAULT_REPORT_DATE])) {
                 continue;
             }
@@ -1417,10 +1464,21 @@ class CronArchive
     private function getUrlsWithSegment($idSite, $period, $date)
     {
         $urlsWithSegment = array();
-        $segments = $this->getSegmentsForSite($idSite, $period);
+        $segmentsForSite = $this->getSegmentsForSite($idSite, $period);
+
+        $segments = array();
+        foreach ($segmentsForSite as $segment) {
+            if ($this->shouldSkipSegmentArchiving($segment)) {
+                $this->logger->info("- skipping segment archiving for '{segment}'.", array('segment' => $segment));
+
+                continue;
+            }
+
+            $segments[] = $segment;
+        }
+
         $segmentCount = count($segments);
         $processedSegmentCount = 0;
-
         foreach ($segments as $segment) {
             $dateParamForSegment = $this->segmentArchivingRequestUrlProvider->getUrlParameterDateString($idSite, $period, $date, $segment);
 
@@ -1458,19 +1516,56 @@ class CronArchive
         }
 
         return new SharedSiteIds($websitesIds);
-   }
+    }
 
     /**
      * @param $idSite
      * @param $period
      */
-    private function logArchiveWebsite($idSite, $period)
+    private function logArchiveWebsite($idSite, $period, $date)
     {
         $this->logger->info(sprintf(
-            "Will pre-process for website id = %s, %s period",
+            "Will pre-process for website id = %s, period = %s, date = %s",
             $idSite,
-            $period
+            $period,
+            $date
         ));
         $this->logger->info('- pre-processing all visits');
+    }
+
+    private function shouldSkipSegmentArchiving($segment)
+    {
+        if ($this->disableSegmentsArchiving) {
+            return true;
+        }
+
+        return !empty($this->segmentsToForce) && !in_array($segment, $this->segmentsToForce);
+    }
+
+    private function logForcedSegmentInfo()
+    {
+        if (empty($this->segmentsToForce)) {
+            return;
+        }
+
+        $this->logger->info("- Limiting segment archiving to following segments:");
+        foreach ($this->segmentsToForce as $segmentDefinition) {
+            $this->logger->info("  * " . $segmentDefinition);
+        }
+    }
+
+    /**
+     * @return CliMulti
+     */
+    private function makeCliMulti()
+    {
+        $cliMulti = StaticContainer::get('Piwik\CliMulti');
+        $cliMulti->setUrlToPiwik($this->urlToPiwik);
+        return $cliMulti;
+    }
+
+    public function setUrlToPiwik($url)
+    {
+        $this->urlToPiwik = $url;
     }
 }

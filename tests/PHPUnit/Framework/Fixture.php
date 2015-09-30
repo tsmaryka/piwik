@@ -10,10 +10,12 @@ namespace Piwik\Tests\Framework;
 use Piwik\Access;
 use Piwik\Application\Environment;
 use Piwik\Archive;
+use Piwik\Auth;
 use Piwik\Cache\Backend\File;
 use Piwik\Cache as PiwikCache;
 use Piwik\Common;
 use Piwik\Config;
+use Piwik\Container\StaticContainer;
 use Piwik\DataAccess\ArchiveTableCreator;
 use Piwik\DataTable\Manager as DataTableManager;
 use Piwik\Date;
@@ -46,7 +48,7 @@ use Piwik\Tracker\Cache;
 use Piwik\Translate;
 use Piwik\Url;
 use PHPUnit_Framework_Assert;
-use Piwik_TestingEnvironment;
+use Piwik\Tests\Framework\TestingEnvironmentVariables;
 use PiwikTracker;
 use Piwik_LocalTracker;
 use Piwik\Updater;
@@ -87,7 +89,12 @@ class Fixture extends \PHPUnit_Framework_Assert
 
     public $dropDatabaseInSetUp = true;
     public $dropDatabaseInTearDown = true;
+
+    /**
+     * @deprecated
+     */
     public $loadTranslations = true;
+
     public $createSuperUser = true;
     public $removeExistingSuperUser = true;
     public $overwriteExisting = true;
@@ -109,6 +116,8 @@ class Fixture extends \PHPUnit_Framework_Assert
      */
     public $extraDefinitions = array();
 
+    public $extraTestEnvVars = array();
+
     /**
      * @var Environment
      */
@@ -128,6 +137,16 @@ class Fixture extends \PHPUnit_Framework_Assert
         }
 
         return 'python';
+    }
+
+    public function loginAsSuperUser()
+    {
+        /** @var Auth $auth */
+        $auth = $this->piwikEnvironment->getContainer()->get('Piwik\Auth');
+        $auth->setLogin(Fixture::ADMIN_USER_LOGIN);
+        $auth->setPassword(Fixture::ADMIN_USER_PASSWORD);
+        Access::getInstance()->setSuperUserAccess(false);
+        Access::getInstance()->reloadAccess(StaticContainer::get('Piwik\Auth'));
     }
 
     /** Adds data to Piwik. Creates sites, tracks visits, imports log files, etc. */
@@ -159,26 +178,36 @@ class Fixture extends \PHPUnit_Framework_Assert
 
     public function performSetUp($setupEnvironmentOnly = false)
     {
+        // TODO: don't use static var, use test env var for this
+        TestingEnvironmentManipulator::$extraPluginsToLoad = $this->extraPluginsToLoad;
+
+        $this->dbName = $this->getDbName();
+
+        if ($this->persistFixtureData) {
+            $this->dropDatabaseInSetUp = false;
+            $this->dropDatabaseInTearDown = false;
+            $this->overwriteExisting = false;
+            $this->removeExistingSuperUser = false;
+        }
+
+        $testEnv = $this->getTestEnvironment();
+        $testEnv->testCaseClass = $this->testCaseClass;
+        $testEnv->fixtureClass = get_class($this);
+        $testEnv->dbName = $this->dbName;
+
+        foreach ($this->extraTestEnvVars as $name => $value) {
+            $testEnv->$name = $value;
+        }
+
+        $testEnv->save();
+
         $this->createEnvironmentInstance();
 
+        if ($this->dbName === false) { // must be after test config is created
+            $this->dbName = Config::getInstance()->database['dbname'];
+        }
+
         try {
-            $this->dbName = $this->getDbName();
-
-            if ($this->persistFixtureData) {
-                $this->dropDatabaseInSetUp = false;
-                $this->dropDatabaseInTearDown = false;
-                $this->overwriteExisting = false;
-                $this->removeExistingSuperUser = false;
-
-                Config::getInstance()->database_tests['dbname'] = Config::getInstance()->database['dbname'] = $this->dbName;
-
-                $this->getTestEnvironment()->dbName = $this->dbName;
-            }
-
-            if ($this->dbName === false) { // must be after test config is created
-                $this->dbName = Config::getInstance()->database['dbname'];
-            }
-
             static::connectWithoutDatabase();
 
             if ($this->dropDatabaseInSetUp
@@ -213,8 +242,6 @@ class Fixture extends \PHPUnit_Framework_Assert
             DbHelper::truncateAllTables();
         }
 
-        static::createAccessInstance();
-
         // We need to be SU to create websites for tests
         Access::getInstance()->setSuperUserAccess();
 
@@ -222,18 +249,12 @@ class Fixture extends \PHPUnit_Framework_Assert
 
         static::loadAllPlugins($this->getTestEnvironment(), $this->testCaseClass, $this->extraPluginsToLoad);
 
-        self::installAndActivatePlugins();
-
         self::updateDatabase();
+
+        self::installAndActivatePlugins();
 
         $_GET = $_REQUEST = array();
         $_SERVER['HTTP_REFERER'] = '';
-
-        // Make sure translations are loaded to check messages in English
-        if ($this->loadTranslations) {
-            Translate::loadAllTranslations();
-            APILanguageManager::getInstance()->setLanguageForUser('superUserLogin', 'en');
-        }
 
         FakeAccess::$superUserLogin = 'superUserLogin';
 
@@ -247,6 +268,11 @@ class Fixture extends \PHPUnit_Framework_Assert
 
         if ($this->createSuperUser) {
             self::createSuperUser($this->removeExistingSuperUser);
+            if (!(Access::getInstance() instanceof FakeAccess)) {
+                $this->loginAsSuperUser();
+            }
+
+            APILanguageManager::getInstance()->setLanguageForUser('superUserLogin', 'en');
         }
 
         SettingsPiwik::overwritePiwikUrl(self::getRootUrl() . 'tests/PHPUnit/proxy/');
@@ -254,9 +280,6 @@ class Fixture extends \PHPUnit_Framework_Assert
         if ($setupEnvironmentOnly) {
             return;
         }
-
-        $this->getTestEnvironment()->save();
-        $this->getTestEnvironment()->executeSetupTestEnvHook();
 
         PiwikCache::getTransientCache()->flushAll();
 
@@ -275,7 +298,7 @@ class Fixture extends \PHPUnit_Framework_Assert
     public function getTestEnvironment()
     {
         if ($this->testEnvironment === null) {
-            $this->testEnvironment = new Piwik_TestingEnvironment();
+            $this->testEnvironment = new TestingEnvironmentVariables();
             $this->testEnvironment->delete();
 
             if (getenv('PIWIK_USE_XHPROF') == 1) {
@@ -312,6 +335,8 @@ class Fixture extends \PHPUnit_Framework_Assert
         $this->clearInMemoryCaches();
 
         Log::unsetInstance();
+
+        $this->destroyEnvironment();
     }
 
     public function clearInMemoryCaches()
@@ -333,41 +358,15 @@ class Fixture extends \PHPUnit_Framework_Assert
         // since Plugin\Manager uses getFromGlobalConfig which doesn't init the config object
     }
 
-    public static function loadAllPlugins($testEnvironment = null, $testCaseClass = false, $extraPluginsToLoad = array())
+    /**
+     * @param \Piwik\Tests\Framework\TestingEnvironmentVariables|null $testEnvironment Ignored.
+     * @param bool|false $testCaseClass Ignored.
+     * @param array $extraPluginsToLoad Ignoerd.
+     */
+    public static function loadAllPlugins(TestingEnvironmentVariables $testEnvironment = null, $testCaseClass = false, $extraPluginsToLoad = array())
     {
-        if (empty($testEnvironment)) {
-            $testEnvironment = new Piwik_TestingEnvironment();
-        }
-
         DbHelper::createTables();
-        $pluginsManager = Manager::getInstance();
-
-        $plugins = $testEnvironment->getCoreAndSupportedPlugins();
-
-        // make sure the plugin that executed this method is included in the plugins to load
-        $extraPlugins = array_merge($extraPluginsToLoad, array(
-            Plugin::getPluginNameFromBacktrace(debug_backtrace()),
-            Plugin::getPluginNameFromNamespace($testCaseClass),
-            Plugin::getPluginNameFromNamespace(get_called_class())
-        ));
-        foreach ($extraPlugins as $pluginName) {
-            if (empty($pluginName)) {
-                continue;
-            }
-
-            if (in_array($pluginName, $plugins)) {
-                continue;
-            }
-
-            $plugins[] = $pluginName;
-            if ($testEnvironment) {
-                $testEnvironment->pluginsToLoad = array_merge($testEnvironment->pluginsToLoad ?: array(), array($pluginName));
-            }
-        }
-
-        Log::debug("Plugins to load during tests: " . implode(', ', $plugins));
-
-        $pluginsManager->loadPlugins($plugins);
+        Plugin\Manager::getInstance()->loadActivatedPlugins();
     }
 
     public static function installAndActivatePlugins()
@@ -387,6 +386,8 @@ class Fixture extends \PHPUnit_Framework_Assert
                 $pluginsManager->activatePlugin($name);
             }
         }
+
+        $pluginsManager->loadPluginTranslations();
     }
 
     public static function unloadAllPlugins()
@@ -414,11 +415,13 @@ class Fixture extends \PHPUnit_Framework_Assert
      * @param int $siteSearch
      * @param null|string $searchKeywordParameters
      * @param null|string $searchCategoryParameters
+     * @param null|string $timezone
+     * @param null|string $type eg 'website' or 'mobileapp'
      * @return int    idSite of website created
      */
     public static function createWebsite($dateTime, $ecommerce = 0, $siteName = false, $siteUrl = false,
                                          $siteSearch = 1, $searchKeywordParameters = null,
-                                         $searchCategoryParameters = null, $timezone = null)
+                                         $searchCategoryParameters = null, $timezone = null, $type = null)
     {
         if($siteName === false) {
             $siteName = self::DEFAULT_SITE_NAME;
@@ -431,7 +434,12 @@ class Fixture extends \PHPUnit_Framework_Assert
             $ips = null,
             $excludedQueryParameters = null,
             $timezone,
-            $currency = null
+            $currency = null,
+            $group = null,
+            $startDate = null,
+            $excludedUserAgents = null,
+            $keepURLFragments = null,
+            $type
         );
 
         // Manually set the website creation date to a day earlier than the earliest day we record stats for
@@ -453,7 +461,11 @@ class Fixture extends \PHPUnit_Framework_Assert
      */
     public static function getRootUrl()
     {
-        $piwikUrl = Url::getCurrentUrlWithoutFileName();
+        $piwikUrl = Config::getInstance()->tests['http_host'];
+
+        if (strpos($piwikUrl, 'http://') !== 0) {
+            $piwikUrl = 'http://' . $piwikUrl . '/';
+        }
 
         $pathBeforeRoot = 'tests';
         // Running from a plugin
@@ -622,11 +634,6 @@ class Fixture extends \PHPUnit_Framework_Assert
      */
     public static function setUpScheduledReports($idSite)
     {
-        // fake access is needed so API methods can call Piwik::getCurrentUserLogin(), e.g: 'ScheduledReports.addReport'
-        $pseudoMockAccess = new FakeAccess;
-        FakeAccess::$superUser = true;
-        Access::setSingletonInstance($pseudoMockAccess);
-
         // retrieve available reports
         $availableReportMetadata = APIScheduledReports::getReportMetadata($idSite, ScheduledReports::EMAIL_TYPE);
 
@@ -736,8 +743,18 @@ class Fixture extends \PHPUnit_Framework_Assert
         $outfileName = $deflatedOut . '.gz';
 
         if (file_exists($deflatedOut)) {
+            $filesize = filesize($deflatedOut);
+            if($filesize == 0) {
+                throw new Exception("The file $deflatedOut is empty. Suggestion: delete it and try again.");
+            }
+
+            self::copyDownloadedGeoIp($deflatedOut, $filename);
+
+            // Valid geoip db found
             return;
         }
+
+        echo "Geoip database $outfileName is not found. Downloading from $url...\n";
 
         $dump = fopen($url, 'rb');
         $outfile = fopen($outfileName, 'wb');
@@ -758,6 +775,16 @@ class Fixture extends \PHPUnit_Framework_Assert
             Log::info(file_get_contents($outfile));
 
             throw new Exception("gunzip failed($return): " . implode("\n", $output));
+        }
+
+        self::copyDownloadedGeoIp($deflatedOut, $filename);
+    }
+
+    private static function copyDownloadedGeoIp($deflatedOut, $filename)
+    {
+        $realFileOut = PIWIK_INCLUDE_PATH . '/' . LocationProvider\GeoIp::$geoIPDatabaseDir . '/' . $filename;
+        if (!file_exists($realFileOut)) {
+            copy($deflatedOut, $realFileOut);
         }
     }
 
@@ -824,13 +851,10 @@ class Fixture extends \PHPUnit_Framework_Assert
     }
 
     /**
-     * Sets up access instance.
+     * @deprecated
      */
     public static function createAccessInstance()
     {
-        Access::setSingletonInstance(null);
-        Access::getInstance();
-        Piwik::postEvent('Request.initAuthenticationObject');
     }
 
     public function dropDatabase($dbName = null)
@@ -913,7 +937,17 @@ class Fixture extends \PHPUnit_Framework_Assert
 
     public function createEnvironmentInstance()
     {
-        $this->piwikEnvironment = new Environment('test', array_merge($this->provideContainerConfig(), $this->extraDefinitions));
+        $this->piwikEnvironment = new Environment($environment = null, $this->extraDefinitions);
         $this->piwikEnvironment->init();
+    }
+
+    public function destroyEnvironment()
+    {
+        if ($this->piwikEnvironment === null) {
+            return;
+        }
+
+        $this->piwikEnvironment->destroy();
+        $this->piwikEnvironment = null;
     }
 }

@@ -256,9 +256,13 @@ class UserIdTest extends IntegrationTestCase
 
     private function setSuperUser()
     {
-        $pseudoMockAccess = new FakeAccess();
-        $pseudoMockAccess::setSuperUserAccess(true);
-        Access::setSingletonInstance($pseudoMockAccess);
+        FakeAccess::$superUser = true;
     }
 
+    public function provideContainerConfig()
+    {
+        return array(
+            'Piwik\Access' => new FakeAccess()
+        );
+    }
 }

@@ -21,11 +21,10 @@ port = 3306
 adapter = PDO\MYSQL
 type = InnoDB
 schema = Mysql
-
 ; if charset is set to utf8, Piwik will ensure that it is storing its data using UTF8 charset.
 ; it will add a sql query SET at each page view.
-; Piwik should work correctly without this setting.
-;charset = utf8
+; Piwik should work correctly without this setting but we recommend to have a charset set.
+charset = utf8
 
 [database_tests]
 host = localhost
@@ -226,6 +225,8 @@ allow_adding_segments_for_all_websites = 1
 ; When archiving segments for the first time, this determines the oldest date that will be archived.
 ; This option can be used to avoid archiving (for isntance) the lastN years for every new segment.
 ; Valid option values include: "beginning_of_time" (start date of archiving will not be changed)
+;                              "segment_last_edit_time" (start date of archiving will be the earliest last edit date found,
+;                                                        if none is found, the created date is used)
 ;                              "segment_creation_time" (start date of archiving will be the creation date of the segment)
 ;                              lastN where N is an integer (eg "last10" to archive for 10 days before the segment creation date)
 process_new_segments_from = "beginning_of_time"
@@ -322,7 +323,8 @@ force_ssl = 0
 ; login cookie name
 login_cookie_name = piwik_auth
 
-; login cookie expiration (14 days)
+; By default, the auth cookie is set only for the duration of session.
+; if "Remember me" is checked, the auth cookie will be valid for 14 days by default
 login_cookie_expire = 1209600
 
 ; The path on the server in which the cookie will be available on.
@@ -358,6 +360,9 @@ language_cookie_name = piwik_lang
 
 ; standard email address displayed when sending emails
 noreply_email_address = "noreply@{DOMAIN}"
+
+; standard email name displayed when sending emails. If not set, a default name will be used.
+noreply_email_name = ""
 
 ; feedback email address;
 ; when testing, use your own email address or "nobody"
@@ -567,7 +572,9 @@ use_third_party_id_cookie = 0
 debug = 0
 
 ; This option is an alternative to the debug option above. When set to 1, you can debug tracker request by adding
-; a debug=1 query paramater in the URL. All other HTTP requests will not have debug enabled.
+; a debug=1 query paramater in the URL. All other HTTP requests will not have debug enabled. For security reasons this
+; option should be only enabled if really needed and only for a short time frame. Otherwise anyone can set debug=1 and
+; see the log output as well.
 debug_on_demand = 0
 
 ; This setting is described in this FAQ: http://piwik.org/faq/how-to/faq_175/
@@ -718,6 +725,7 @@ password = ; Proxy password: optional; if specified, username is mandatory
 Plugins[] = CorePluginsAdmin
 Plugins[] = CoreAdminHome
 Plugins[] = CoreHome
+Plugins[] = WebsiteMeasurable
 Plugins[] = Diagnostics
 Plugins[] = CoreVisualizations
 Plugins[] = Proxy
@@ -772,6 +780,8 @@ Plugins[] = TestRunner
 Plugins[] = BulkTracking
 Plugins[] = Resolution
 Plugins[] = DevicePlugins
+Plugins[] = Heartbeat
+Plugins[] = Intl
 
 [PluginsInstalled]
 PluginsInstalled[] = Diagnostics
@@ -781,6 +791,7 @@ PluginsInstalled[] = UsersManager
 PluginsInstalled[] = SitesManager
 PluginsInstalled[] = Installation
 PluginsInstalled[] = Monolog
+PluginsInstalled[] = Intl
 
 [APISettings]
 ; Any key/value pair can be added in this section, they will be available via the REST call

@@ -1,5 +1,6 @@
 {
     "SEO": {
+        "PluginDescription": "Deze plugin extraheert en toon SEO metrics: Alexa web ranking, Google pagerank, aantal geïndexeerde pagina's en links naar de huidige geselecteerde website.",
         "AlexaRank": "Alexa Rank",
         "Bing_IndexedPages": "Bing geindexeerde pagina's",
         "Dmoz": "DMOZ items",
@@ -7,7 +8,9 @@
         "ExternalBacklinks": "Externe terugkoppelingen (Majestic)",
         "Google_IndexedPages": "Google geindexeerde pagina's",
         "Rank": "Ranking",
+        "ReferrerDomains": "Verwijzende domeinen (Majestic)",
         "SeoRankings": "SEO rankings",
-        "SEORankingsFor": "SEO rankings voor %s"
+        "SEORankingsFor": "SEO rankings voor %s",
+        "ViewBacklinksOnMajesticSEO": "Bekijk de Externe Backlinks rapportage op MajesticSEO.com"
     }
 }

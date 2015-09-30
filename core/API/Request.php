@@ -87,14 +87,14 @@ class Request
     public static function getRequestArrayFromString($request, $defaultRequest = null)
     {
         if ($defaultRequest === null) {
-            $defaultRequest = $_GET + $_POST;
+            $defaultRequest = self::getDefaultRequest();
 
             $requestRaw = self::getRequestParametersGET();
             if (!empty($requestRaw['segment'])) {
                 $defaultRequest['segment'] = $requestRaw['segment'];
             }
 
-            if (empty($defaultRequest['format_metrics'])) {
+            if (!isset($defaultRequest['format_metrics'])) {
                 $defaultRequest['format_metrics'] = 'bc';
             }
         }
@@ -238,7 +238,6 @@ class Request
             $returnedValue = Proxy::getInstance()->call($apiClassName, $method, $this->request);
 
             $toReturn = $response->getResponse($returnedValue, $module, $method);
-
         } catch (Exception $e) {
             Log::debug($e);
 
@@ -277,6 +276,22 @@ class Request
     public static function getClassNameAPI($plugin)
     {
         return sprintf('\Piwik\Plugins\%s\API', $plugin);
+    }
+
+    /**
+     * Detect if request is an API request. Meaning the module is 'API' and an API method having a valid format was
+     * specified.
+     *
+     * @param array $request  eg array('module' => 'API', 'method' => 'Test.getMethod')
+     * @return bool
+     * @throws Exception
+     */
+    public static function isApiRequest($request)
+    {
+        $module = Common::getRequestVar('module', '', 'string', $request);
+        $method = Common::getRequestVar('method', '', 'string', $request);
+
+        return $module === 'API' && !empty($method) && (count(explode('.', $method)) === 2);
     }
 
     /**
@@ -324,6 +339,10 @@ class Request
 
     private static function shouldReloadAuthUsingTokenAuth($request)
     {
+        if (is_null($request)) {
+            $request = self::getDefaultRequest();
+        }
+
         if (!isset($request['token_auth'])) {
             // no token is given so we just keep the current loaded user
             return false;
@@ -484,5 +503,13 @@ class Request
             $this->request['apiAction'] = null;
         }
         list($this->request['apiModule'], $this->request['apiAction']) = $this->getRenamedModuleAndAction($this->request['apiModule'], $this->request['apiAction']);
+    }
+
+    /**
+     * @return array
+     */
+    private static function getDefaultRequest()
+    {
+        return $_GET + $_POST;
     }
 }

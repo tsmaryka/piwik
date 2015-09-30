@@ -26,11 +26,13 @@ class Console extends Application
      */
     private $environment;
 
-    public function __construct()
+    public function __construct(Environment $environment = null)
     {
         $this->setServerArgsIfPhpCgi();
 
         parent::__construct();
+
+        $this->environment = $environment;
 
         $option = new InputOption('piwik-domain',
             null,
@@ -82,7 +84,7 @@ class Console extends Application
     {
         if (!class_exists($command)) {
             Log::warning(sprintf('Cannot add command %s, class does not exist', $command));
-        } else if (!is_subclass_of($command, 'Piwik\Plugin\ConsoleCommand')) {
+        } elseif (!is_subclass_of($command, 'Piwik\Plugin\ConsoleCommand')) {
             Log::warning(sprintf('Cannot add command %s, class does not extend Piwik\Plugin\ConsoleCommand', $command));
         } else {
             /** @var Command $commandInstance */
@@ -144,7 +146,7 @@ class Console extends Application
             }
 
             if (!defined('STDIN')) {
-                define('STDIN', fopen('php://stdin','r'));
+                define('STDIN', fopen('php://stdin', 'r'));
             }
         }
     }
@@ -169,8 +171,10 @@ class Console extends Application
     protected function initEnvironment(OutputInterface $output)
     {
         try {
-            $this->environment = new Environment('cli');
-            $this->environment->init();
+            if ($this->environment === null) {
+                $this->environment = new Environment('cli');
+                $this->environment->init();
+            }
 
             $config = Config::getInstance();
             return $config;
@@ -213,5 +217,4 @@ class Console extends Application
 
         return $commands;
     }
-
 }

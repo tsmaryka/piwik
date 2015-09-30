@@ -2,13 +2,48 @@
 
 This is a changelog for Piwik platform developers. All changes for our HTTP API's, Plugins, Themes, etc will be listed here.
 
+## Piwik 2.15.0
+
+### Breaking Changes
+* The method `Dimension::getId()` has been set as `final`. It is not allowed to overwrite this method.
+* We fixed a bug where the API method `Sites.getPatternMatchSites` only returned a very limited number of websites by default. We now return all websites by default unless a limit is specified specifically.
+
+### Deprecations
+
+* The following events have been deprecated and will be removed in Piwik 3.0. Use [dimensions](http://developer.piwik.org/guides/dimensions) instead.
+ * `Tracker.existingVisitInformation`
+ * `Tracker.getVisitFieldsToPersist`
+ * `Tracker.newConversionInformation`
+ * `Tracker.newVisitorInformation`
+ * `Tracker.recordAction`
+ * `Tracker.recordEcommerceGoal`
+ * `Tracker.recordStandardGoals`
+
+### Internal Change
+* The option `branch` of the console command `development:sync-system-test-processed` was removed as it is no longer needed.
+
 ## Piwik 2.14.0
 
 ### Breaking Changes
 * The `UserSettings` API has been removed. The API was deprecated in earlier versions. Use `DevicesDetection`, `Resolution` and `DevicePlugins` API instead.
+* Many translations have been moved to the new Intl plugin. Most of them will still work, but please update their usage. See https://github.com/piwik/piwik/pull/8101 for a full list 
+
+### New features 
+* The JavaScript Tracker does now track outlinks and downloads if a user opens the context menu if the `enabled` parameter of the `enableLinkTracking()` method is set to `true`. To use this new feature use `tracker.enableLinkTracking(true)` or `_paq.push(['enableLinkTracking', true]);`. This is not industry standard and is vulnerable to false positives since not every user will select "Open in a new tab" when the context menu is shown. Most users will do though and it will lead to more accurate results in most cases.
+* The JavaScript Tracker now contains the 'heart beat' feature which can be used to obtain more accurate visit lengths by periodically sending 'ping' requests to Piwik. To use this feature use `tracker.enableHeartBeatTimer();` or `_paq.push(['enableHeartBeatTimer']);`. By default, a ping request will be sent every 15 seconds. You can specify a custom ping delay (in seconds) by passing an argument, eg, `tracker.enableHeartBeatTimer(10);` or `_paq.push(['enableHeartBeatTimer', 10]);`.
+* New custom segment `languageCode` that lets you segment visitors that are using a particular language. Example values: `de`, `fr`, `en-gb`, `zh-cn`, etc.
+* Segment `userId` now supports any segment operator (previously only operator Contains `=@` was supported for this segment).
+
+### Commands updates
+* The command `core:archive` now has two new parameter: `--force-idsegments` and `--skip-idsegments` that let you force (or skip) processing archives for one or several custom segments.
+* The command `scheduled-tasks:run` now has an argument `task` that lets you force run a particular scheduled task.
 
 ### Library updates
 * Updated pChart library from 2.1.3 to 2.1.4. The files were moved from the directory `libs/pChart2.1.3` to `libs/pChart`
+
+### Internal change
+* To execute UI tests "ImageMagick" is now required.
+* The Q JavaScript promise library is now distributed with tests and can be used in the piwik.js tests.
 
 ## Piwik 2.13.0
 
@@ -314,3 +349,4 @@ We are using `@since` annotations in case we are introducing new API's to make i
  -->
 
 Find the general Piwik Changelogs for each release at [piwik.org/changelog](http://piwik.org/changelog/)
+ 

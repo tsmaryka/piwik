@@ -163,15 +163,15 @@ class Updater extends \Piwik\Updates
         $conversionColumns = DbHelper::getTableColumns(Common::prefixTable('log_conversion'));
 
         foreach ($this->visitDimensions as $dimension) {
-            $versions = $this->mixinVersions($updater, $dimension, 'log_visit.', $visitColumns, $versions);
+            $versions = $this->mixinVersions($updater, $dimension, VisitDimension::INSTALLER_PREFIX, $visitColumns, $versions);
         }
 
         foreach ($this->actionDimensions as $dimension) {
-            $versions = $this->mixinVersions($updater, $dimension, 'log_link_visit_action.', $actionColumns, $versions);
+            $versions = $this->mixinVersions($updater, $dimension, ActionDimension::INSTALLER_PREFIX, $actionColumns, $versions);
         }
 
         foreach ($this->conversionDimensions as $dimension) {
-            $versions = $this->mixinVersions($updater, $dimension, 'log_conversion.', $conversionColumns, $versions);
+            $versions = $this->mixinVersions($updater, $dimension, ConversionDimension::INSTALLER_PREFIX, $conversionColumns, $versions);
         }
 
         return $versions;
@@ -226,7 +226,7 @@ class Updater extends \Piwik\Updates
         // maps names of core dimension columns that were part of the original dimension refactor with their
         // initial "version" strings. The '1' that is sometimes appended to the end of the string (sometimes seen as
         // NULL1) is from individual dimension "versioning" logic (eg, see VisitDimension::getVersion())
-        $initialCoreDimensionVersions = array (
+        $initialCoreDimensionVersions = array(
             'log_visit.config_resolution' => 'VARCHAR(9) NOT NULL',
             'log_visit.config_device_brand' => 'VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL',
             'log_visit.config_device_model' => 'VARCHAR( 100 ) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL',

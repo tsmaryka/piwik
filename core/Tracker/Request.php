@@ -43,6 +43,15 @@ class Request
 
     protected $tokenAuth;
 
+    /**
+     * Stores plugin specific tracking request metadata. RequestProcessors can store
+     * whatever they want in this array, and other RequestProcessors can modify these
+     * values to change tracker behavior.
+     *
+     * @var string[][]
+     */
+    private $requestMetadata = array();
+
     const UNKNOWN_RESOLUTION = 'unknown';
 
     const CUSTOM_TIMESTAMP_DOES_NOT_REQUIRE_TOKENAUTH_WHEN_NEWER_THAN = 14400; // 4 hours
@@ -112,7 +121,6 @@ class Request
         $shouldAuthenticate = TrackerConfig::getConfigValue('tracking_requests_require_authentication');
 
         if ($shouldAuthenticate) {
-
             try {
                 $idSite = $this->getIdSite();
             } catch (Exception $e) {
@@ -137,13 +145,14 @@ class Request
                 $this->isAuthenticated = self::authenticateSuperUserOrAdmin($tokenAuth, $idSite);
                 $cache->save($cacheKey, $this->isAuthenticated);
             } catch (Exception $e) {
+                Common::printDebug("could not authenticate, caught exception: " . $e->getMessage());
+
                 $this->isAuthenticated = false;
             }
 
             if ($this->isAuthenticated) {
                 Common::printDebug("token_auth is authenticated!");
             }
-
         } else {
             $this->isAuthenticated = true;
             Common::printDebug("token_auth authentication not required");
@@ -162,6 +171,8 @@ class Request
         $auth = StaticContainer::get('Piwik\Auth');
         $auth->setTokenAuth($tokenAuth);
         $auth->setLogin(null);
+        $auth->setPassword(null);
+        $auth->setPasswordHash(null);
         $access = $auth->authenticate();
 
         if (!empty($access) && $access->hasSuperUserAccess()) {
@@ -311,6 +322,7 @@ class Request
             'urlref'       => array('', 'string'),
             'res'          => array(self::UNKNOWN_RESOLUTION, 'string'),
             'idgoal'       => array(-1, 'int'),
+            'ping'         => array(0, 'int'),
 
             // other
             'bots'         => array(0, 'int'),
@@ -429,7 +441,7 @@ class Request
         $isTimestampRecent = $timeFromNow < self::CUSTOM_TIMESTAMP_DOES_NOT_REQUIRE_TOKENAUTH_WHEN_NEWER_THAN;
 
         if (!$isTimestampRecent) {
-            if(!$this->isAuthenticated()) {
+            if (!$this->isAuthenticated()) {
                 Common::printDebug(sprintf("Custom timestamp is %s seconds old, requires &token_auth...", $timeFromNow));
                 Common::printDebug("WARN: Tracker API 'cdt' was used with invalid token_auth");
                 return false;
@@ -739,7 +751,7 @@ class Request
      */
     public function getUserIdHashed($userId)
     {
-        return substr( sha1( $userId ), 0, 16);
+        return substr(sha1($userId), 0, 16);
     }
 
     /**
@@ -760,5 +772,29 @@ class Request
         }
 
         return $cip;
+    }
+
+    /**
+     * Set a request metadata value.
+     *
+     * @param string $pluginName eg, `'Actions'`, `'Goals'`, `'YourPlugin'`
+     * @param string $key
+     * @param mixed $value
+     */
+    public function setMetadata($pluginName, $key, $value)
+    {
+        $this->requestMetadata[$pluginName][$key] = $value;
+    }
+
+    /**
+     * Get a request metadata value. Returns `null` if none exists.
+     *
+     * @param string $pluginName eg, `'Actions'`, `'Goals'`, `'YourPlugin'`
+     * @param string $key
+     * @return mixed
+     */
+    public function getMetadata($pluginName, $key)
+    {
+        return isset($this->requestMetadata[$pluginName][$key]) ? $this->requestMetadata[$pluginName][$key] : null;
     }
 }

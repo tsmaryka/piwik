@@ -19,7 +19,6 @@ use Piwik\Tracker\Request;
 use Piwik\Tracker\Visitor;
 use Piwik\Tracker\Action;
 use Piwik\Tracker;
-use Piwik\Translate;
 use Piwik\Plugin;
 use Exception;
 
@@ -38,6 +37,8 @@ use Exception;
  */
 abstract class VisitDimension extends Dimension
 {
+    const INSTALLER_PREFIX = 'log_visit.';
+
     private $tableName = 'log_visit';
 
     /**
@@ -299,7 +300,6 @@ abstract class VisitDimension extends Dimension
         $cache   = PiwikCache::getTransientCache();
 
         if (!$cache->contains($cacheId)) {
-
             $plugins   = PluginManager::getInstance()->getPluginsLoadedAndActivated();
             $instances = array();
 
@@ -352,5 +352,4 @@ abstract class VisitDimension extends Dimension
 
         return $instances;
     }
-
 }

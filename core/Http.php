@@ -144,8 +144,7 @@ class Http
         $httpMethod = 'GET',
         $httpUsername = null,
         $httpPassword = null
-    )
-    {
+    ) {
         if ($followDepth > 5) {
             throw new Exception('Too many redirects (' . $followDepth . ')');
         }
@@ -173,11 +172,8 @@ class Http
             $rangeHeader = 'Range: bytes=' . $byteRange[0] . '-' . $byteRange[1] . "\r\n";
         }
 
-        // proxy configuration
-        $proxyHost = Config::getInstance()->proxy['host'];
-        $proxyPort = Config::getInstance()->proxy['port'];
-        $proxyUser = Config::getInstance()->proxy['username'];
-        $proxyPassword = Config::getInstance()->proxy['password'];
+        list($proxyHost, $proxyPort, $proxyUser, $proxyPassword) = self::getProxyConfiguration($aUrl);
+
 
         $aUrl = trim($aUrl);
 
@@ -388,7 +384,7 @@ class Http
 
             // determine success or failure
             @fclose(@$fsock);
-        } else if ($method == 'fopen') {
+        } elseif ($method == 'fopen') {
             $response = false;
 
             // we make sure the request takes less than a few seconds to fail
@@ -456,7 +452,7 @@ class Http
             if (!empty($default_socket_timeout)) {
                 @ini_set('default_socket_timeout', $default_socket_timeout);
             }
-        } else if ($method == 'curl') {
+        } elseif ($method == 'curl') {
             if (!self::isCurlEnabled()) {
                 // can be triggered in tests
                 throw new Exception("CURL is not enabled in php.ini, but is being used.");
@@ -501,7 +497,7 @@ class Http
                 @curl_setopt($ch, CURLOPT_NOBODY, true);
             }
 
-            if(!empty($httpUsername) && !empty($httpPassword)) {
+            if (!empty($httpUsername) && !empty($httpPassword)) {
                 $curl_options += array(
                     CURLOPT_USERPWD => $httpUsername . ':' . $httpPassword,
                 );
@@ -537,7 +533,7 @@ class Http
 
             if ($response === true) {
                 $response = '';
-            } else if ($response === false) {
+            } elseif ($response === false) {
                 $errstr = curl_error($ch);
                 if ($errstr != '') {
                     throw new Exception('curl_exec: ' . $errstr
@@ -549,7 +545,14 @@ class Http
                 // redirects are included in the output html, so we look for the last line that starts w/ HTTP/...
                 // to split the response
                 while (substr($response, 0, 5) == "HTTP/") {
-                    list($header, $response) = explode("\r\n\r\n", $response, 2);
+                    $split = explode("\r\n\r\n", $response, 2);
+
+                    if(count($split) == 2) {
+                        list($header, $response) = $split;
+                    } else {
+                        $response = '';
+                        $header = $split;
+                    }
                 }
 
                 foreach (explode("\r\n", $header) as $line) {
@@ -823,5 +826,29 @@ class Http
             }
         }
         return $modifiedSince;
+    }
+
+    /**
+     * Returns Proxy to use for connecting via HTTP to given URL
+     *
+     * @param string $url
+     * @return array
+     */
+    private static function getProxyConfiguration($url)
+    {
+        $hostname = UrlHelper::getHostFromUrl($url);
+        $localHostnames = Url::getLocalHostnames();
+
+        if(in_array($hostname, $localHostnames)) {
+            return array(null, null, null, null);
+        }
+
+        // proxy configuration
+        $proxyHost = Config::getInstance()->proxy['host'];
+        $proxyPort = Config::getInstance()->proxy['port'];
+        $proxyUser = Config::getInstance()->proxy['username'];
+        $proxyPassword = Config::getInstance()->proxy['password'];
+
+        return array($proxyHost, $proxyPort, $proxyUser, $proxyPassword);
     }
 }

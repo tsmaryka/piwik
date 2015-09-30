@@ -36,7 +36,7 @@ class TrackerTest extends IntegrationTestCase
 
         Fixture::createWebsite('2014-02-04');
 
-        $testingEnvironment = new \Piwik_TestingEnvironment();
+        $testingEnvironment = new \Piwik\Tests\Framework\TestingEnvironmentVariables();
         $testingEnvironment->testCaseClass = null;
         $testingEnvironment->addFailingScheduledTask = false;
         $testingEnvironment->addScheduledTask = false;
@@ -179,7 +179,11 @@ class TrackerTest extends IntegrationTestCase
 
     public function test_scheduledTasks_CanBeRunThroughTracker_WithOutputIncluded_IfDebugQueryParamUsed()
     {
-        $this->setScheduledTasksToRunInTracker();
+        $environment = $this->setScheduledTasksToRunInTracker();
+        $config = $environment->configOverride;
+        $config['log']['log_writers'] = array('screen');
+        $environment->configOverride = $config;
+        $environment->save();
 
         $urlToTest = $this->getSimpleTrackingUrl() . '&debug=1';
 
@@ -291,16 +295,18 @@ class TrackerTest extends IntegrationTestCase
 
     private function setScheduledTasksToRunInTracker()
     {
-        $testingEnvironment = new \Piwik_TestingEnvironment();
+        $testingEnvironment = new \Piwik\Tests\Framework\TestingEnvironmentVariables();
         $testingEnvironment->testCaseClass = 'Piwik\Tests\System\TrackerTest';
         $testingEnvironment->addScheduledTask = true;
         $testingEnvironment->configOverride = array('Tracker' => array('scheduled_tasks_min_interval' => 1, 'debug_on_demand' => 1));
         $testingEnvironment->save();
+
+        return $testingEnvironment;
     }
 
     private function addFailingScheduledTaskToTracker($doFatalError)
     {
-        $testingEnvironment = new \Piwik_TestingEnvironment();
+        $testingEnvironment = new \Piwik\Tests\Framework\TestingEnvironmentVariables();
         $testingEnvironment->addFailingScheduledTask = true;
         $testingEnvironment->scheduledTaskFailureShouldBeFatal = $doFatalError;
         $testingEnvironment->save();
@@ -312,7 +318,7 @@ class TrackerTest extends IntegrationTestCase
             define('DEBUG_FORCE_SCHEDULED_TASKS', 1);
         }
 
-        $testingEnvironment = new \Piwik_TestingEnvironment();
+        $testingEnvironment = new \Piwik\Tests\Framework\TestingEnvironmentVariables();
 
         $tasksToAdd = array();
 
@@ -381,4 +387,12 @@ class TrackerTest extends IntegrationTestCase
         Option::clearCachedOption(self::TASKS_STARTED_OPTION_NAME);
         $this->assertEquals(1, Option::get(self::TASKS_STARTED_OPTION_NAME));
     }
+
+    public static function provideContainerConfigBeforeClass()
+    {
+        return array(
+            'Psr\Log\LoggerInterface' => \DI\get('Monolog\Logger')
+        );
+    }
+
 }

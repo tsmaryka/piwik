@@ -16,9 +16,12 @@ use Piwik\Db;
 use Piwik\DbHelper;
 use Piwik\FrontController;
 use Piwik\Option;
+use Piwik\Plugins\PrivacyManager\IPAnonymizer;
 use Piwik\Plugins\SegmentEditor\API as APISegmentEditor;
+use Piwik\Plugins\UserCountry\LocationProvider;
 use Piwik\Plugins\UsersManager\API as UsersManagerAPI;
 use Piwik\Plugins\SitesManager\API as SitesManagerAPI;
+use Piwik\Tests\Framework\Fixture;
 use Piwik\WidgetsList;
 use Piwik\Tests\Framework\OverrideLogin;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
@@ -38,6 +41,8 @@ class UITestFixture extends SqlDump
 
     public function setUp()
     {
+        self::downloadGeoIpDbs();
+
         parent::setUp();
 
         self::updateDatabase();
@@ -47,6 +52,10 @@ class UITestFixture extends SqlDump
             array('ts_created' => '2011-01-01'),
             "idsite = 1"
         );
+
+        // for proper geolocation
+        LocationProvider::setCurrentProvider(LocationProvider\GeoIp\Php::ID);
+        IPAnonymizer::deactivate();
 
         $this->addOverlayVisits();
         $this->addNewSitesForSiteSelector();
@@ -106,13 +115,31 @@ class UITestFixture extends SqlDump
             array('page-6.html', 'page-3.html', ''),
         );
 
+        $ips = array( // ip's chosen for geolocation data
+            "20.56.34.67",
+            "24.17.88.121",
+            "24.12.45.67",
+            "24.120.12.5",
+            "24.100.12.5",
+            "24.110.12.5",
+            "24.17.88.122",
+            "24.12.45.68",
+            "24.17.88.123",
+            "24.18.127.34",
+            "18.50.45.71",
+            "24.20.127.34",
+            "24.23.40.34",
+            "18.50.45.70",
+            "24.50.12.5",
+        );
+
         $date = Date::factory('yesterday');
         $t = self::getTracker($idSite = 3, $dateTime = $date->getDatetime(), $defaultInit = true);
         $t->enableBulkTracking();
 
         foreach ($visitProfiles as $visitCount => $visit) {
             $t->setNewVisitorId();
-            $t->setIp("123.234.23.$visitCount");
+            $t->setIp($ips[$visitCount]);
 
             foreach ($visit as $idx => $action) {
                 $t->setForceVisitDateTime($date->addHour($visitCount)->addHour(0.01 * $idx)->getDatetime());
@@ -192,6 +219,7 @@ class UITestFixture extends SqlDump
 
         $oldGet = $_GET;
         $_GET['idSite'] = 1;
+        $_GET['token_auth'] = Fixture::getTokenAuth();
 
         // collect widgets & sort them so widget order is not important
         $allWidgets = array();
@@ -297,11 +325,5 @@ class UITestFixture extends SqlDump
             "From Europe", "continentCode==eur", $idSite = 1, $autoArchive = false, $enabledAllUsers = true);
         APISegmentEditor::getInstance()->add(
             "Multiple actions", "actions>=2", $idSite = 1, $autoArchive = false, $enabledAllUsers = true);
-    }
-
-    public static function createAccessInstance()
-    {
-        Access::setSingletonInstance($access = new OverrideLogin());
-        \Piwik\Piwik::postEvent('Request.initAuthenticationObject');
     }
 }

@@ -335,7 +335,6 @@ class Plugin
             if (file_exists($componentFile)) {
                 include_once $componentFile;
             }
-
         } else {
             $this->cache->save($cacheId, false); // prevent from trying to load over and over again for instance if there is no Menu for a plugin
 
@@ -449,6 +448,20 @@ class Plugin
         } else {
             return false;
         }
+    }
+
+    /**
+     * Override this method in your plugin class if you want your plugin to be loaded during tracking.
+     *
+     * Note: If you define your own dimension or handle a tracker event, your plugin will automatically
+     * be detected as a tracker plugin.
+     *
+     * @return bool
+     * @internal
+     */
+    public function isTrackerPlugin()
+    {
+        return false;
     }
 
     /**

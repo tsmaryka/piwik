@@ -13,8 +13,6 @@ use DI\ContainerBuilder;
 use Doctrine\Common\Cache\ArrayCache;
 use Piwik\Application\Kernel\GlobalSettingsProvider;
 use Piwik\Application\Kernel\PluginList;
-use Piwik\Config\IniFileChainFactory;
-use Piwik\Development;
 use Piwik\Plugin\Manager;
 
 /**
@@ -33,28 +31,28 @@ class ContainerFactory
     private $settings;
 
     /**
-     * Optional environment config to load.
+     * Optional environment configs to load.
      *
-     * @var string|null
+     * @var string[]
      */
-    private $environment;
+    private $environments;
 
     /**
-     * @var array
+     * @var array[]
      */
     private $definitions;
 
     /**
      * @param PluginList $pluginList
      * @param GlobalSettingsProvider $settings
-     * @param string|null $environment Optional environment config to load.
-     * @param array $definitions
+     * @param string[] $environment Optional environment configs to load.
+     * @param array[] $definitions
      */
-    public function __construct(PluginList $pluginList, GlobalSettingsProvider $settings, $environment = null, array $definitions = array())
+    public function __construct(PluginList $pluginList, GlobalSettingsProvider $settings, array $environments = array(), array $definitions = array())
     {
         $this->pluginList = $pluginList;
         $this->settings = $settings;
-        $this->environment = $environment;
+        $this->environments = $environments;
         $this->definitions = $definitions;
     }
 
@@ -90,10 +88,14 @@ class ContainerFactory
         }
 
         // Environment config
-        $this->addEnvironmentConfig($builder);
+        foreach ($this->environments as $environment) {
+            $this->addEnvironmentConfig($builder, $environment);
+        }
 
         if (!empty($this->definitions)) {
-            $builder->addDefinitions($this->definitions);
+            foreach ($this->definitions as $definitionArray) {
+                $builder->addDefinitions($definitionArray);
+            }
         }
 
         $container = $builder->build();
@@ -103,13 +105,13 @@ class ContainerFactory
         return $container;
     }
 
-    private function addEnvironmentConfig(ContainerBuilder $builder)
+    private function addEnvironmentConfig(ContainerBuilder $builder, $environment)
     {
-        if (!$this->environment) {
+        if (!$environment) {
             return;
         }
 
-        $file = sprintf('%s/config/environment/%s.php', PIWIK_USER_PATH, $this->environment);
+        $file = sprintf('%s/config/environment/%s.php', PIWIK_USER_PATH, $environment);
 
         if (file_exists($file)) {
             $builder->addDefinitions($file);
@@ -128,9 +130,11 @@ class ContainerFactory
                 $builder->addDefinitions($file);
             }
 
-            $environmentFile = $baseDir . '/config/' . $this->environment . '.php';
-            if (file_exists($environmentFile)) {
-                $builder->addDefinitions($environmentFile);
+            foreach ($this->environments as $environment) {
+                $environmentFile = $baseDir . '/config/' . $environment . '.php';
+                if (file_exists($environmentFile)) {
+                    $builder->addDefinitions($environmentFile);
+                }
             }
         }
     }

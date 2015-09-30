@@ -16,7 +16,7 @@ use DeviceDetector\Parser\Client\Browser AS BrowserParser;
 
 function getBrandLogo($label)
 {
-    $label = str_replace(" ", "_", $label);
+    $label = preg_replace("/[^a-z0-9_-]+/i", "_", $label);
     $path = dirname(__FILE__) . '/images/brand/' . $label . '.ico';
     if (file_exists($path)) {
         return 'plugins/DevicesDetection/images/brand/' . $label . '.ico';
@@ -340,7 +340,7 @@ function getBrowserEngineName($engineName) {
     $displayNames = array(
         'Trident' => 'Trident (IE)',
         'Gecko' => 'Gecko (Firefox)',
-        'KHTML' => 'KHTML (Konquerer)',
+        'KHTML' => 'KHTML (Konqueror)',
         'Presto' => 'Presto (Opera)',
         'WebKit' => 'WebKit (Safari, Chrome)',
         'Blink' => 'Blink (Chrome, Opera)'

@@ -11,7 +11,6 @@ namespace Piwik\Tracker;
 
 use Piwik\Common;
 use Piwik\Segment\SegmentExpression;
-use Piwik\Tracker;
 
 /**
  * This class is used to query Action IDs from the log_action table.
@@ -35,7 +34,7 @@ class TableLogAction
     public static function loadIdsAction($actionsNameAndType)
     {
         // Add url prefix if not set
-        foreach($actionsNameAndType as &$action) {
+        foreach ($actionsNameAndType as &$action) {
             if (2 == count($action)) {
                 $action[] = null;
             }
@@ -178,10 +177,9 @@ class TableLogAction
             || $matchType == SegmentExpression::MATCH_NOT_EQUAL
         ) {
             $idAction = self::getModel()->getIdActionMatchingNameAndType($valueToMatch, $actionType);
-            // if the action is not found, we hack -100 to ensure it tries to match against an integer
-            // otherwise binding idaction_name to "false" returns some rows for some reasons (in case &segment=pageTitle==Větrnásssssss)
+            // Action is not found (eg. &segment=pageTitle==Větrnásssssss)
             if (empty($idAction)) {
-                $idAction = -100;
+                $idAction = null;
             }
             return $idAction;
         }
@@ -266,6 +264,4 @@ class TableLogAction
 
         return in_array($actionType, $actionsTypesStoredUnsanitized);
     }
-
 }
-

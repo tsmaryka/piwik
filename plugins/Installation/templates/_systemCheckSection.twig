@@ -1,12 +1,12 @@
 {% import _self as local %}
 
-<table class="infosServer" id="systemCheckRequired">
+<table class="simple-table system-check" id="systemCheckRequired">
     {{ local.diagnosticTable(diagnosticReport.getMandatoryDiagnosticResults()) }}
 </table>
 
 <h3>{{ 'Installation_Optional'|translate }}</h3>
 
-<table class="infos" id="systemCheckOptional">
+<table class="simple-table system-check" id="systemCheckOptional">
     {{ local.diagnosticTable(diagnosticReport.getOptionalDiagnosticResults()) }}
 </table>
 
@@ -15,13 +15,13 @@
     {% set error = constant('Piwik\\Plugins\\Diagnostics\\Diagnostic\\DiagnosticResult::STATUS_ERROR') %}
     {% set warning = constant('Piwik\\Plugins\\Diagnostics\\Diagnostic\\DiagnosticResult::STATUS_WARNING') %}
 
-    {% set errorIcon %}<img src='plugins/Morpheus/images/error.png' />{% endset %}
-    {% set warningIcon %}<img src='plugins/Morpheus/images/warning.png' />{% endset %}
-    {% set okIcon %}<img src='plugins/Morpheus/images/ok.png' />{% endset %}
+    {% set errorIcon %} <span class="icon-error"></span> {% endset %}
+    {% set warningIcon %} <span class="icon-warning"></span> {% endset %}
+    {% set okIcon %} <span class="icon-ok"></span> {% endset %}
 
     {% for result in results %}
         <tr>
-            <td class="label">{{ result.label }}</td>
+            <td>{{ result.label }}</td>
             <td>
                 {% for item in result.items %}
 
