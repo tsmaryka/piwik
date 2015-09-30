@@ -39,7 +39,11 @@ defaults('USE_AUTHENTICATION',1);			// Use (internal) authentication - best choi
 											//  You need to change ADMIN_PASSWORD to make
 											//  this work!
 defaults('ADMIN_USERNAME','apc'); 			// Admin Username
+<<<<<<< HEAD
 defaults('ADMIN_PASSWORD','password');  	// Admin Password - CHANGE THIS TO ENABLE!!!
+=======
+defaults('ADMIN_PASSWORD','guinness');  	// Admin Password - CHANGE THIS TO ENABLE!!!
+>>>>>>> a61831dba7d9fec294627e631d15139f72c671ff
 
 // (beckerr) I'm using a clear text password here, because I've no good idea how to let 
 //           users generate a md5 or crypt password in a easy way to fill it in above

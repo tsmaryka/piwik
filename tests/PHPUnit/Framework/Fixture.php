@@ -10,6 +10,7 @@ namespace Piwik\Tests\Framework;
 use Piwik\Access;
 use Piwik\Application\Environment;
 use Piwik\Archive;
+use Piwik\ArchiveProcessor\PluginsArchiver;
 use Piwik\Auth;
 use Piwik\Cache\Backend\File;
 use Piwik\Cache as PiwikCache;
@@ -40,6 +41,7 @@ use Piwik\Plugins\UsersManager\UsersManager;
 use Piwik\ReportRenderer;
 use Piwik\SettingsPiwik;
 use Piwik\SettingsServer;
+use Piwik\Singleton;
 use Piwik\Site;
 use Piwik\Tests\Framework\Mock\FakeAccess;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
@@ -350,6 +352,8 @@ class Fixture extends \PHPUnit_Framework_Assert
         PiwikCache::getEagerCache()->flushAll();
         ArchiveTableCreator::clear();
         \Piwik\Plugins\ScheduledReports\API::$cache = array();
+        Singleton::clearAll();
+        PluginsArchiver::$archivers = array();
 
         $_GET = $_REQUEST = array();
         Translate::reset();
@@ -462,6 +466,11 @@ class Fixture extends \PHPUnit_Framework_Assert
     public static function getRootUrl()
     {
         $piwikUrl = Config::getInstance()->tests['http_host'];
+        $piwikUri = Config::getInstance()->tests['request_uri'];
+
+        if($piwikUri == '@REQUEST_URI@') {
+            throw new Exception("Piwik is mis-configured. Remove (or fix) the 'request_uri' entry below [tests] section in your config.ini.php. ");
+        }
 
         if (strpos($piwikUrl, 'http://') !== 0) {
             $piwikUrl = 'http://' . $piwikUrl . '/';
@@ -481,6 +490,11 @@ class Fixture extends \PHPUnit_Framework_Assert
         // in case force_ssl=1, or assume_secure_protocol=1, is set in tests
         // we don't want to require Travis CI or devs to setup HTTPS on their local machine
         $piwikUrl = str_replace("https://", "http://", $piwikUrl);
+
+        // append REQUEST_URI (eg. when Piwik runs at http://localhost/piwik/)
+        if($piwikUri != '/') {
+            $piwikUrl .= $piwikUri;
+        }
 
         return $piwikUrl;
     }
@@ -757,6 +771,10 @@ class Fixture extends \PHPUnit_Framework_Assert
         echo "Geoip database $outfileName is not found. Downloading from $url...\n";
 
         $dump = fopen($url, 'rb');
+        if($dump === false){
+            throw new Exception('Could not download Geoip database from ' . $url);
+        }
+        
         $outfile = fopen($outfileName, 'wb');
         if(!$outfile) {
             throw new Exception("Failed to create file $outfileName - please check permissions");

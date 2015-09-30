@@ -26,9 +26,9 @@ class SitesManager extends \Piwik\Plugin
     const KEEP_URL_FRAGMENT_NO = 2;
 
     /**
-     * @see Piwik\Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
@@ -126,6 +126,7 @@ class SitesManager extends \Piwik\Plugin
         $array['sitesearch_keyword_parameters'] = $this->getTrackerSearchKeywordParameters($website);
         $array['sitesearch_category_parameters'] = $this->getTrackerSearchCategoryParameters($website);
         $array['timezone'] = $this->getTimezoneFromWebsite($website);
+        $array['ts_created'] = $website['ts_created'];
     }
 
     /**

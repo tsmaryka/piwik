@@ -263,6 +263,7 @@ class API extends \Piwik\Plugin\API
      *
      * @param bool|int $timestamp
      * @return array The list of website IDs
+     * @deprecated since 2.15 This method will be removed in Piwik 3.0, there is no replacement.
      */
     public function getSitesIdWithVisits($timestamp = false)
     {
@@ -1482,7 +1483,10 @@ class API extends \Piwik\Plugin\API
 
         foreach ($urls as &$url) {
             $url = $this->removeTrailingSlash($url);
-            if (strpos($url, 'http') !== 0) {
+            $scheme = parse_url($url, PHP_URL_SCHEME);
+            if (empty($scheme)
+                && strpos($url, '://') === false
+            ) {
                 $url = 'http://' . $url;
             }
             $url = trim($url);

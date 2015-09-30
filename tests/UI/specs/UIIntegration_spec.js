@@ -476,7 +476,7 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
 
     // Notifications
     it('should load the notifications page correctly', function (done) {
-        expect.screenshot('notifications').to.be.capture(function (page) {
+        expect.screenshot('notifications').to.be.captureSelector('#content', function (page) {
             page.load("?" + generalParams + "&module=ExampleUI&action=notifications&idSite=1&period=day&date=yesterday");
             page.evaluate(function () {
                 $('#header').hide();
@@ -516,13 +516,13 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
 
     // CustomAlerts plugin TODO: move to CustomAlerts plugin
     it('should load the custom alerts list correctly', function (done) {
-        expect.screenshot('customalerts_list').to.be.capture(function (page) {
+        expect.screenshot('customalerts_list').to.be.captureSelector('#content', function (page) {
             page.load("?" + generalParams + "&module=CustomAlerts&action=index&idSite=1&period=day&date=yesterday&tests_hide_piwik_version=1");
         }, done);
     });
 
     it('should load the triggered custom alerts list correctly', function (done) {
-        expect.screenshot('customalerts_list_triggered').to.be.capture(function (page) {
+        expect.screenshot('customalerts_list_triggered').to.be.captureSelector('#content', function (page) {
             page.load("?" + generalParams + "&module=CustomAlerts&action=historyTriggeredAlerts&idSite=1&period=day&date=yesterday&tests_hide_piwik_version=1");
         }, done);
     });
@@ -546,7 +546,7 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
     });
 
     it('should load the email reports page correctly', function (done) {
-        expect.screenshot('email_reports').to.be.capture(function (page) {
+        expect.screenshot('email_reports').to.be.captureSelector('#content', function (page) {
             page.load("?" + generalParams + "&module=ScheduledReports&action=index");
             page.evaluate(function () {
                 $('#header').hide();
@@ -555,7 +555,7 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
     });
 
     it('should load the feedback form when the feedback form link is clicked', function (done) {
-        expect.screenshot('feedback_form').to.be.capture(function (page) {
+        expect.screenshot('feedback_form').to.be.captureSelector('#content', function (page) {
 
             page.load("?" + generalParams + "&module=Feedback&action=index");
 
@@ -614,5 +614,28 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
         }, done);
     });
 
+    // extra segment tests
+    it('should load the row evolution page correctly when a segment is selected', function (done) {
+        var url = "?module=CoreHome&action=index&idSite=1&period=year&date=2012-01-13#?module=CustomVariables&action=menuGetCustomVariables&idSite=1&period=year&date=2012-01-13";
+        expect.page(url).contains('.ui-dialog > .ui-dialog-content > div.rowevolution:visible', 'segmented_rowevolution', function (page) {
+            page.click('.segmentationTitle');
+            page.click('.segname:contains(From Europe)');
 
+            page.mouseMove('table.dataTable tbody tr:first-child');
+            page.mouseMove('a.actionRowEvolution:visible'); // necessary to get popover to display
+            page.click('a.actionRowEvolution:visible');
+        }, done);
+    });
+
+    it('should load the segmented visitor log correctly when a segment is selected', function (done) {
+        var url = "?module=CoreHome&action=index&idSite=1&period=year&date=2012-01-13#?module=CustomVariables&action=menuGetCustomVariables&idSite=1&period=year&date=2012-01-13";
+        expect.page(url).contains('.ui-dialog > .ui-dialog-content > div.dataTableVizVisitorLog:visible', 'segmented_visitorlog', function (page) {
+            page.click('.segmentationTitle');
+            page.click('.segname:contains(From Europe)');
+
+            page.mouseMove('table.dataTable tbody tr:first-child');
+            page.mouseMove('a.actionSegmentVisitorLog:visible'); // necessary to get popover to display
+            page.click('a.actionSegmentVisitorLog:visible');
+        }, done);
+    });
 });
