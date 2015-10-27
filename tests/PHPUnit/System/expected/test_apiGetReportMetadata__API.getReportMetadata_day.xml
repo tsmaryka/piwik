@@ -750,7 +750,7 @@
 		<metricsDocumentation>
 			<entry_nb_visits>Number of visits that started on this page.</entry_nb_visits>
 			<entry_bounce_count>Number of visits that started and ended on this page. This means that the visitor left the website after viewing only this page.</entry_bounce_count>
-			<bounce_rate>Percentage of visits that started and ended on this page.</bounce_rate>
+			<bounce_rate>The percentage of visits that started on this page and left the website straight away.</bounce_rate>
 			<avg_time_generation>The average time it took to generate the page. This metric includes the time it took the server to generate the web page, plus the time it took for the visitor to download the response from the server. A lower 'Avg. generation time' means a faster website for your visitors!</avg_time_generation>
 		</metricsDocumentation>
 		<processedMetrics>
@@ -838,6 +838,11 @@
 			<nb_impressions>Impressions</nb_impressions>
 			<nb_interactions>Interactions</nb_interactions>
 		</metrics>
+		<metricsDocumentation>
+			<nb_impressions>The number of times a content block, such as a banner or an ad, was displayed on a page.</nb_impressions>
+			<nb_interactions>The number of times a content block was interacted with (eg, a 'click' on a banner or ad).</nb_interactions>
+			<interaction_rate>The ratio of content impressions to interactions.</interaction_rate>
+		</metricsDocumentation>
 		<processedMetrics>
 			<interaction_rate>Interaction Rate</interaction_rate>
 		</processedMetrics>
@@ -856,6 +861,11 @@
 			<nb_impressions>Impressions</nb_impressions>
 			<nb_interactions>Interactions</nb_interactions>
 		</metrics>
+		<metricsDocumentation>
+			<nb_impressions>The number of times a content block, such as a banner or an ad, was displayed on a page.</nb_impressions>
+			<nb_interactions>The number of times a content block was interacted with (eg, a 'click' on a banner or ad).</nb_interactions>
+			<interaction_rate>The ratio of content impressions to interactions.</interaction_rate>
+		</metricsDocumentation>
 		<processedMetrics>
 			<interaction_rate>Interaction Rate</interaction_rate>
 		</processedMetrics>

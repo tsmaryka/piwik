@@ -57,7 +57,7 @@
             var searchObject = $location.search(),
                 searchString = [];
             for (var name in searchObject) {
-                if (!searchObject.hasOwnProperty(name)) {
+                if (!searchObject.hasOwnProperty(name) || name == '_') {
                     continue;
                 }
 
@@ -67,7 +67,12 @@
                     searchObject[name] = searchObject[name][searchObject[name].length - 1];
                 }
 
-                searchString.push(name + '=' + encodeURIComponent(searchObject[name]));
+                var value = searchObject[name];
+                if (name != 'columns') { // the columns query parameter is not urldecoded in PHP code. TODO: this should be fixed in 3.0
+                    value = encodeURIComponent(value);
+                }
+
+                searchString.push(name + '=' + value);
             }
             searchString = searchString.join('&');
 
@@ -77,15 +82,12 @@
 
         function load(hash) {
             // make sure the hash is just the query parameter values, w/o a starting #, / or ? char. broadcast.pageload & $location.path should get neither
-            var chars = ['#', '/', '?'];
-            for (var i = 0; i != chars.length; ++i) {
-                var charToRemove = chars[i];
-                if (hash.charAt(0) == charToRemove) {
-                    hash = hash.substring(1);
-                }
-            }
+            hash = normalizeHash(hash);
 
-            if (hash) {
+            var currentHash = normalizeHash(location.hash);
+            if (currentHash === hash) {
+                loadCurrentPage(); // it would not trigger a location change success event as URL is the same, call it manually
+            } else if (hash) {
                 $location.search(hash);
             } else {
                 // NOTE: this works around a bug in angularjs. when unsetting the hash (ie, removing in the URL),
@@ -96,6 +98,17 @@
             }
 
             setTimeout(function () { $rootScope.$apply(); }, 1);
+        }
+
+        function normalizeHash(hash) {
+            var chars = ['#', '/', '?'];
+            for (var i = 0; i != chars.length; ++i) {
+                var charToRemove = chars[i];
+                if (hash.charAt(0) == charToRemove) {
+                    hash = hash.substring(1);
+                }
+            }
+            return hash;
         }
     }
 })(window, jQuery, broadcast);

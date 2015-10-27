@@ -84,7 +84,7 @@ table.entityTable tr td a:hover {
 
         .topBarElem {
           padding: 0 3px;
-          color: @theme-color-text-lighter;
+          color: @color-blue-xposure;
             strong {
                 font-weight: normal;
                 color: @theme-color-text;
@@ -166,7 +166,7 @@ table.entityTable tr td a:hover {
     }
 
     .nav_sep {
-        background: @theme-color-menu-contrast-background;
+        background: @theme-color-background-tinyContrast;
         min-height: 57px;
         .border-radius(0px);
         border-color: @theme-color-background-lowContrast !important;
@@ -186,9 +186,7 @@ table.entityTable tr td a:hover {
   border: 1px solid @theme-color-background-lowContrast;
   background: @theme-color-background-base;
   z-index: 10;
-  padding: 8px 10px 8px 10px;
   .border-radius(0px);
-  .font-default(10px, 12px);
   > span {
     position: relative;
     background: none;
@@ -197,15 +195,16 @@ table.entityTable tr td a:hover {
       content: '';
       border-left: 4px solid transparent;
       border-right: 4px solid transparent;
-      border-top: 5px solid @theme-color-brand;
+      border-top: 5px solid @color-silver-l20;
       position: absolute;
       top: 3px;
-      right: 0;
+      right: 7px;
     }
   }
 
   ul.submenu {
     margin-left: 0;
+    padding-right: 0;
     li {
       list-style-type: none;
       > div {
@@ -236,24 +235,15 @@ table.entityTable tr td a:hover {
 .segmentEditorPanel {
   border: 1px solid @theme-color-background-lowContrast;
   background: @theme-color-background-base;
-  padding: 8px 10px 8px 10px;
   .border-radius(0px);
-  .segmentationTitle {
-    background: url(plugins/Morpheus/images/segment-users.png) no-repeat right 0;
-    text-transform: uppercase;
-    .font-default(10px, 12px);
-    position: relative;
-  }
   .dropdown-body {
     background:@theme-color-background-base;
-    padding:0 10px;
+    padding: 8px 19px 0;
     .border-radius(0px);
-    border: 1px solid @color-silver-l80;
     border-top-width: 0px;
   }
   &:hover .dropdown-body {
     background:@theme-color-background-base;
-    border-color: @color-silver-l80;
   }
   .segmentationContainer {
     > span > strong {
@@ -299,31 +289,36 @@ table.entityTable tr td a:hover {
 /* Iframed Embed dashboard style */
 #standalone {
 
-  #Dashboard:hover ul {
-    background: #f1f0eb;
-    border-color: #a9a399;
-  }
-
   #Dashboard {
-    ul {
+    position: relative;
 
-      background: @theme-color-background-base;
-      border: 1px solid @color-silver-l80;
-      padding: 8px 10px 8px 10px;
+    &:hover ul {
+      background-color: @theme-color-background-base;
+    }
+    ul {
+      padding: 0 19px;
       color: @theme-color-text-light;
-      height: 30px;
+      min-height: 33px;
       line-height:0.5em;
       .border-radius(0px);
+      border: 0;
+      background-color: @theme-color-background-base;
+    }
+    > ul > li {
+      white-space: nowrap;
+      margin-right: 0px;
+      a {
+        padding-left: 0;
+      }
+      &.sfActive {
+        a {
+          color: @theme-color-menu-contrast-textActive;
+        }
+      }
     }
     > ul > li:hover,
-    > ul > li:hover a,
-    > ul > li.sfHover,
-    > ul > li.sfHover a {
+    > ul > li:hover a {
       color: @theme-color-brand;
-    }
-    > ul > li.sfHover,
-    > ul > li.sfHover a {
-      font-weight: normal;
     }
   }
 }
@@ -335,13 +330,17 @@ table.entityTable tr td a:hover {
     text-decoration: none;
     display: block;
     width: 100%;
+    margin-top: 14px;
+}
+
+.rss li:first-child .rss-title {
+  margin-top: 0;
 }
 
 .rss-date {
     display: block;
     color: @color-silver-l60;
-    .font-default(11px, 14px);
-    margin-top: 15px;
+    .font-default(11px, 26px);
 }
 
 .rss-description {
@@ -559,11 +558,14 @@ table.dataTable .dataTableRowActions {
 
 div.sparkline {
     display: block;
-    width: 100%;
     border-bottom: 0;
     margin-bottom: 10px;
-    &:hover {
-        border-bottom: 0;
+    &.linked {
+        border-bottom: 1px solid transparent;
+        &:hover {
+            cursor: pointer;
+            border-bottom: 1px dashed #c3c3c3;
+        }
     }
 }
 
@@ -862,7 +864,7 @@ div.sparkline {
 
 #piwik-promo-share {
     border: 0px;
-    background: #f2f2f2;
+    background: @theme-color-background-tinyContrast;
     .font-default(10px, 16px);
 }
 
@@ -874,13 +876,13 @@ tr:hover #token_auth {
   background: #FFFFF7;
 }
 
-// previous style overrides
-#header_message a {
+#header_message .dropdown a,
+#header_message #updateCheckLinkContainer:hover {
     text-decoration: underline;
 }
 
-#header_message a:hover {
-    text-decoration: none;
+#header_message #updateCheckLinkContainer:hover {
+    cursor: pointer;
 }
 
 #multisites table.dataTable {
