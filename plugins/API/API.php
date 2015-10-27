@@ -202,6 +202,23 @@ class API extends \Piwik\Plugin\API
         return $segments;
     }
 
+    /**
+     * @param $segmentName
+     * @param $table
+     * @return array
+     */
+    protected function getSegmentValuesFromVisitorLog($segmentName, $table)
+    {
+        // Cleanup data to return the top suggested (non empty) labels for this segment
+        $values = $table->getColumn($segmentName);
+
+
+        // Select also flattened keys (custom variables "page" scope, page URLs for one visit, page titles for one visit)
+        $valuesBis = $table->getColumnsStartingWith($segmentName . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP);
+        $values = array_merge($values, $valuesBis);
+        return $values;
+    }
+
     private function sortSegments($row1, $row2)
     {
         $customVarCategory = Piwik::translate('CustomVariables_CustomVariables');
@@ -538,12 +555,7 @@ class API extends \Piwik\Plugin\API
         if ($suggestedValuesCallbackRequiresTable) {
             $values = call_user_func($segmentFound['suggestedValuesCallback'], $idSite, $maxSuggestionsToReturn, $table);
         } else {
-            // Cleanup data to return the top suggested (non empty) labels for this segment
-            $values = $table->getColumn($segmentName);
-
-            // Select also flattened keys (custom variables "page" scope, page URLs for one visit, page titles for one visit)
-            $valuesBis = $table->getColumnsStartingWith($segmentName . ColumnDelete::APPEND_TO_COLUMN_NAME_TO_KEEP);
-            $values = array_merge($values, $valuesBis);
+            $values = $this->getSegmentValuesFromVisitorLog($segmentName, $table);
         }
 
         $values = $this->getMostFrequentValues($values);
@@ -556,6 +568,30 @@ class API extends \Piwik\Plugin\API
     }
 
     /**
+     * A glossary of all reports and their definition
+     *
+     * @param $idSite
+     * @return array
+     */
+    public function getGlossaryReports($idSite)
+    {
+        $glossary = StaticContainer::get('Piwik\Plugins\API\Glossary');
+        return $glossary->reportsGlossary($idSite);
+    }
+
+    /**
+     * A glossary of all metrics and their definition
+     *
+     * @param $idSite
+     * @return array
+     */
+    public function getGlossaryMetrics($idSite)
+    {
+        $glossary = StaticContainer::get('Piwik\Plugins\API\Glossary');
+        return $glossary->metricsGlossary($idSite);
+    }
+
+    /**
      * @param $segmentName
      * @return bool
      */
@@ -564,7 +600,9 @@ class API extends \Piwik\Plugin\API
         // If you update this, also update flattenVisitorDetailsArray
         $segmentsNeedActionsInfo = array('visitConvertedGoalId',
                                          'pageUrl', 'pageTitle', 'siteSearchKeyword',
-                                         'entryPageTitle', 'entryPageUrl', 'exitPageTitle', 'exitPageUrl');
+                                         'entryPageTitle', 'entryPageUrl', 'exitPageTitle', 'exitPageUrl',
+                                         'outlinkUrl', 'downloadUrl'
+        );
         $isCustomVariablePage = stripos($segmentName, 'customVariablePage') !== false;
         $isEventSegment = stripos($segmentName, 'event') !== false;
         $isContentSegment = stripos($segmentName, 'content') !== false;
