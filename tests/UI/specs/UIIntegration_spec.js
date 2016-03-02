@@ -30,7 +30,9 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
     });
 
     beforeEach(function () {
-        delete testEnvironment.configOverride;
+        if (testEnvironment.configOverride.database) {
+            delete testEnvironment.configOverride.database;
+        }
         testEnvironment.testUseMockAuth = 1;
         testEnvironment.save();
     });
@@ -162,6 +164,9 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
             page.load("?" + urlBase + "#" + generalParams + "&module=Actions&action=menuGetPageUrls");
             page.mouseMove('h2[piwik-enriched-headline]');
             page.click(".helpIcon");
+            page.evaluate(function () {
+                $('.helpDate:visible').hide();
+            });
         }, done);
     });
 
@@ -493,6 +498,12 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
         }, done);
     });
 
+    it('should load the config file page correctly', function (done) {
+        expect.screenshot('admin_diagnostics_configfile').to.be.captureSelector('.pageWrap', function (page) {
+            page.load("?" + generalParams + "&module=Diagnostics&action=configfile");
+        }, done);
+    });
+
     it('should load the Settings > Visitor Generator admin page correctly', function (done) {
         expect.screenshot('admin_visitor_generator').to.be.captureSelector('.pageWrap', function (page) {
             page.load("?" + generalParams + "&module=VisitorGenerator&action=index");
@@ -528,15 +539,14 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
 
     // DB error message
     it('should fail correctly when db information in config is incorrect', function (done) {
-        testEnvironment.configOverride = {
-            database: {
-                host: '127.50.50.50',
-                username: 'slkdfjsdlkfj',
-                password: 'slkdfjsldkfj',
-                dbname: 'abcdefg',
-                tables_prefix: 'gfedcba'
-            }
-        };
+
+        testEnvironment.overrideConfig('database', {
+            host: config.phpServer.REMOTE_ADDR,
+            username: 'slkdfjsdlkfj',
+            password: 'slkdfjsldkfj',
+            dbname: 'abcdefg',
+            tables_prefix: 'gfedcba'
+        });
         testEnvironment.save();
 
         expect.screenshot('db_connect_error').to.be.capture(function (page) {
@@ -563,6 +573,13 @@ describe("UIIntegrationTest", function () { // TODO: Rename to Piwik?
             page.load("?" + generalParams + "&module=Widgetize&action=index");
             page.mouseMove('.widgetpreview-categorylist>li:contains(Visits Summary)');
             page.mouseMove('li[uniqueid=widgetVisitsSummarygetEvolutionGraphcolumnsArray]');
+            page.evaluate(function () {
+                $('.formEmbedCode').each(function () {
+                    var val = $(this).val();
+                    val = val.replace(/localhost\:[0-9]+/g, 'localhost');
+                    $(this).val(val);
+                });
+            });
         }, done);
     });
 

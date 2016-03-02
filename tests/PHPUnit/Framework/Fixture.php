@@ -107,6 +107,7 @@ class Fixture extends \PHPUnit_Framework_Assert
 
     public $testCaseClass = false;
     public $extraPluginsToLoad = array();
+    public $extraDiEnvironments = array();
 
     public $testEnvironment = null;
 
@@ -139,6 +140,11 @@ class Fixture extends \PHPUnit_Framework_Assert
         }
 
         return 'python';
+    }
+
+    public static function getTestRootUrl()
+    {
+        return self::getRootUrl() . 'tests/PHPUnit/proxy/';
     }
 
     public function loginAsSuperUser()
@@ -175,7 +181,7 @@ class Fixture extends \PHPUnit_Framework_Assert
             return $id;
         }
 
-        return Config::getInstance()->database_tests['dbname'];
+        return self::getConfig()->database_tests['dbname'];
     }
 
     public function performSetUp($setupEnvironmentOnly = false)
@@ -193,9 +199,11 @@ class Fixture extends \PHPUnit_Framework_Assert
         }
 
         $testEnv = $this->getTestEnvironment();
+        $testEnv->delete();
         $testEnv->testCaseClass = $this->testCaseClass;
         $testEnv->fixtureClass = get_class($this);
         $testEnv->dbName = $this->dbName;
+        $testEnv->extraDiEnvironments = $this->extraDiEnvironments;
 
         foreach ($this->extraTestEnvVars as $name => $value) {
             $testEnv->$name = $value;
@@ -206,7 +214,7 @@ class Fixture extends \PHPUnit_Framework_Assert
         $this->createEnvironmentInstance();
 
         if ($this->dbName === false) { // must be after test config is created
-            $this->dbName = Config::getInstance()->database['dbname'];
+            $this->dbName = self::getConfig()->database['dbname'];
         }
 
         try {
@@ -223,21 +231,19 @@ class Fixture extends \PHPUnit_Framework_Assert
             Tracker::disconnectCachedDbConnection();
 
             // reconnect once we're sure the database exists
-            Config::getInstance()->database['dbname'] = $this->dbName;
+            self::getConfig()->database['dbname'] = $this->dbName;
             Db::createDatabaseObject();
 
             Db::get()->query("SET wait_timeout=28800;");
 
             DbHelper::createTables();
 
-            Manager::getInstance()->unloadPlugins();
+            self::getPluginManager()->unloadPlugins();
 
         } catch (Exception $e) {
             static::fail("TEST INITIALIZATION FAILED: " . $e->getMessage() . "\n" . $e->getTraceAsString());
         }
 
-        include "DataFiles/SearchEngines.php";
-        include "DataFiles/Socials.php";
         include "DataFiles/Providers.php";
 
         if (!$this->isFixtureSetUp()) {
@@ -249,11 +255,12 @@ class Fixture extends \PHPUnit_Framework_Assert
 
         Cache::deleteTrackerCache();
 
-        static::loadAllPlugins($this->getTestEnvironment(), $this->testCaseClass, $this->extraPluginsToLoad);
+        self::resetPluginsInstalledConfig();
 
+        $testEnvironment = $this->getTestEnvironment();
+        static::loadAllPlugins($testEnvironment, $this->testCaseClass, $this->extraPluginsToLoad);
         self::updateDatabase();
-
-        self::installAndActivatePlugins();
+        self::installAndActivatePlugins($testEnvironment);
 
         $_GET = $_REQUEST = array();
         $_SERVER['HTTP_REFERER'] = '';
@@ -277,7 +284,7 @@ class Fixture extends \PHPUnit_Framework_Assert
             APILanguageManager::getInstance()->setLanguageForUser('superUserLogin', 'en');
         }
 
-        SettingsPiwik::overwritePiwikUrl(self::getRootUrl() . 'tests/PHPUnit/proxy/');
+        SettingsPiwik::overwritePiwikUrl(self::getTestRootUrl());
 
         if ($setupEnvironmentOnly) {
             return;
@@ -297,11 +304,16 @@ class Fixture extends \PHPUnit_Framework_Assert
         }
     }
 
+    /**
+     * NOTE: This method should not be used to get a TestingEnvironmentVariables instance.
+     * Instead just create a new instance.
+     *
+     * @return null|\Piwik\Tests\Framework\TestingEnvironmentVariables
+     */
     public function getTestEnvironment()
     {
         if ($this->testEnvironment === null) {
             $this->testEnvironment = new TestingEnvironmentVariables();
-            $this->testEnvironment->delete();
 
             if (getenv('PIWIK_USE_XHPROF') == 1) {
                 $this->testEnvironment->useXhprof = true;
@@ -359,8 +371,24 @@ class Fixture extends \PHPUnit_Framework_Assert
         $_GET = $_REQUEST = array();
         Translate::reset();
 
-        Config::getInstance()->Plugins; // make sure Plugins exists in a config object for next tests that use Plugin\Manager
+        self::getConfig()->Plugins; // make sure Plugins exists in a config object for next tests that use Plugin\Manager
         // since Plugin\Manager uses getFromGlobalConfig which doesn't init the config object
+    }
+
+    protected static function resetPluginsInstalledConfig()
+    {
+        $config = self::getConfig();
+        $installed = $config->PluginsInstalled;
+        $installed['PluginsInstalled'] = array();
+        $config->PluginsInstalled = $installed;
+    }
+
+    protected static function rememberCurrentlyInstalledPluginsAcrossRequests(TestingEnvironmentVariables $testEnvironment)
+    {
+        $plugins = self::getPluginManager()->getInstalledPluginsName();
+
+        $testEnvironment->overrideConfig('PluginsInstalled', 'PluginsInstalled', $plugins);
+        $testEnvironment->save();
     }
 
     /**
@@ -371,12 +399,12 @@ class Fixture extends \PHPUnit_Framework_Assert
     public static function loadAllPlugins(TestingEnvironmentVariables $testEnvironment = null, $testCaseClass = false, $extraPluginsToLoad = array())
     {
         DbHelper::createTables();
-        Plugin\Manager::getInstance()->loadActivatedPlugins();
+        self::getPluginManager()->loadActivatedPlugins();
     }
 
-    public static function installAndActivatePlugins()
+    public static function installAndActivatePlugins(TestingEnvironmentVariables $testEnvironment)
     {
-        $pluginsManager = Manager::getInstance();
+        $pluginsManager = self::getPluginManager();
 
         // Install plugins
         $messages = $pluginsManager->installLoadedPlugins();
@@ -393,19 +421,35 @@ class Fixture extends \PHPUnit_Framework_Assert
         }
 
         $pluginsManager->loadPluginTranslations();
+
+        self::rememberCurrentlyInstalledPluginsAcrossRequests($testEnvironment);
+    }
+
+    private static function getPluginManager()
+    {
+        return Manager::getInstance();
+    }
+
+    private static function getConfig()
+    {
+        return Config::getInstance();
     }
 
     public static function unloadAllPlugins()
     {
         try {
-            $manager = Manager::getInstance();
+            $manager = self::getPluginManager();
             $plugins = $manager->getLoadedPlugins();
             foreach ($plugins as $plugin) {
                 $plugin->uninstall();
             }
-            Manager::getInstance()->unloadPlugins();
+
+            $manager->unloadPlugins();
         } catch (Exception $e) {
         }
+
+        self::resetPluginsInstalledConfig();
+        self::rememberCurrentlyInstalledPluginsAcrossRequests(new TestingEnvironmentVariables());
     }
 
     /**
@@ -455,6 +499,7 @@ class Fixture extends \PHPUnit_Framework_Assert
 
         // Clear the memory Website cache
         Site::clearCache();
+        Cache::deleteCacheWebsiteAttributes($idSite);
 
         return $idSite;
     }
@@ -466,11 +511,17 @@ class Fixture extends \PHPUnit_Framework_Assert
      */
     public static function getRootUrl()
     {
-        $piwikUrl = Config::getInstance()->tests['http_host'];
-        $piwikUri = Config::getInstance()->tests['request_uri'];
+        $config = self::getConfig();
+        $piwikUrl = $config->tests['http_host'];
+        $piwikUri = $config->tests['request_uri'];
+        $piwikPort = $config->tests['port'];
 
         if($piwikUri == '@REQUEST_URI@') {
             throw new Exception("Piwik is mis-configured. Remove (or fix) the 'request_uri' entry below [tests] section in your config.ini.php. ");
+        }
+
+        if (!empty($piwikPort)) {
+            $piwikUrl = $piwikUrl . ':' . $piwikPort;
         }
 
         if (strpos($piwikUrl, 'http://') !== 0) {
@@ -508,7 +559,7 @@ class Fixture extends \PHPUnit_Framework_Assert
      */
     public static function getTrackerUrl()
     {
-        return self::getRootUrl() . 'tests/PHPUnit/proxy/piwik.php';
+        return self::getTestRootUrl() . 'piwik.php';
     }
 
     /**
@@ -561,6 +612,7 @@ class Fixture extends \PHPUnit_Framework_Assert
         self::assertEquals($expectedResponse, $response, "Expected GIF beacon, got: <br/>\n"
             . var_export($response, true)
             . "\n If you are stuck, you can enable [Tracker] debug=1; in config.ini.php to get more debug info."
+            . "\n\n Also, please try to restart your webserver, and run the test again, this may help!"
             . base64_encode($response)
             . $url
         );
@@ -815,7 +867,7 @@ class Fixture extends \PHPUnit_Framework_Assert
         $cmd = $python
             . ' "' . PIWIK_INCLUDE_PATH . '/misc/log-analytics/import_logs.py" ' # script loc
             . '-ddd ' // debug
-            . '--url="' . self::getRootUrl() . 'tests/PHPUnit/proxy/" ' # proxy so that piwik uses test config files
+            . '--url="' . self::getTestRootUrl() . '" ' # proxy so that piwik uses test config files
         ;
 
         foreach ($options as $name => $values) {
@@ -860,7 +912,7 @@ class Fixture extends \PHPUnit_Framework_Assert
      */
     public static function connectWithoutDatabase()
     {
-        $dbConfig = Config::getInstance()->database;
+        $dbConfig = self::getConfig()->database;
         $oldDbName = $dbConfig['dbname'];
         $dbConfig['dbname'] = null;
 
@@ -878,7 +930,7 @@ class Fixture extends \PHPUnit_Framework_Assert
 
     public function dropDatabase($dbName = null)
     {
-        $dbName = $dbName ?: $this->dbName ?: Config::getInstance()->database_tests['dbname'];
+        $dbName = $dbName ?: $this->dbName ?: self::getConfig()->database_tests['dbname'];
 
         $this->log("Dropping database '$dbName'...");
 

@@ -9,8 +9,10 @@
 namespace Piwik\Plugins\Dashboard;
 
 use Piwik\Common;
+use Piwik\Container\StaticContainer;
 use Piwik\Db;
 use Piwik\Piwik;
+use Piwik\Plugin;
 use Piwik\WidgetsList;
 
 /**

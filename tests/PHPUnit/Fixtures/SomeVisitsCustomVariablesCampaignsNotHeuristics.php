@@ -10,6 +10,7 @@ namespace Piwik\Tests\Fixtures;
 use Piwik\Date;
 use Piwik\Plugins\Goals\API;
 use Piwik\Tests\Framework\Fixture;
+use Piwik\Tests\Framework\TestingEnvironmentVariables;
 use PiwikTracker;
 
 /**
@@ -36,10 +37,9 @@ class SomeVisitsCustomVariablesCampaignsNotHeuristics extends Fixture
 
     private function setPiwikEnvironmentOverrides()
     {
-        $configOverride = $this->getTestEnvironment()->configOverride;
-        $configOverride['Tracker']['create_new_visit_when_website_referrer_changes'] = 1;
-        $this->getTestEnvironment()->configOverride = $configOverride;
-        $this->getTestEnvironment()->save();
+        $env = new TestingEnvironmentVariables();
+        $env->overrideConfig('Tracker', 'create_new_visit_when_website_referrer_changes', 1);
+        $env->save();
     }
 
     private function setUpWebsitesAndGoals()
