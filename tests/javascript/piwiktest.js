@@ -27,7 +27,6 @@ Piwik.addPlugin('testPlugin', {
 				'_getCookieName : getCookieName,' +
 				'_setCookie : setCookie,' +
 				'_getLinkIfShouldBeProcessed : getLinkIfShouldBeProcessed,' +
-				'_findConfigCookiePathToUse : findConfigCookiePathToUse,' +
 				'_encode : encodeWrapper,' +
 				'_decode : decodeWrapper,' +
 				'_urldecode : urldecode,' +
@@ -44,7 +43,8 @@ Piwik.addPlugin('testPlugin', {
 				'_purify : purify,' +
 				'_resolveRelativeReference : resolveRelativeReference,' +
 				'_addEventListener : addEventListener,' +
-				'_prefixPropertyName : prefixPropertyName' +
+				'_prefixPropertyName : prefixPropertyName,' +
+				'_getPiwikUrlForOverlay : getPiwikUrlForOverlay' +
 			'}'
 		);
 	},

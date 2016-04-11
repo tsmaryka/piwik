@@ -12,6 +12,7 @@ use Exception;
 use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Filesystem;
+use Piwik\Http;
 use Piwik\Ini\IniReader;
 use Piwik\Plugin\Manager;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
@@ -184,6 +185,30 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         }
     }
 
+    public function test_jsfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.js');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
+    public function test_phpfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.php');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
+    public function test_twigfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.twig');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
+    public function test_htmlfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.html');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
     public function test_directoriesShouldBeChmod755()
     {
         $pluginsPath = realpath(PIWIK_INCLUDE_PATH . '/plugins/');
@@ -305,6 +330,18 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue(preg_match($pattern, $contents) == 0);
     }
 
+    public function test_piwikJs_minified_isUpToDate()
+    {
+        Http::fetchRemoteFile('https://github.com/downloads/yui/yuicompressor/yuicompressor-2.4.7.zip', PIWIK_DOCUMENT_ROOT .'/tmp/yuicompressor.zip');
+        shell_exec('unzip -n '. PIWIK_DOCUMENT_ROOT .'/tmp/yuicompressor.zip');
+        shell_exec("sed '/<DEBUG>/,/<\/DEBUG>/d' < ". PIWIK_DOCUMENT_ROOT ."/js/piwik.js | sed 's/eval/replacedEvilString/' | java -jar yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar --type js --line-break 1000 | sed 's/replacedEvilString/eval/' | sed 's/^[/][*]/\/*!/' > " . PIWIK_DOCUMENT_ROOT ."/piwik-minified.js");
+
+        $this->assertFileEquals(PIWIK_DOCUMENT_ROOT . '/piwik-minified.js',
+                                PIWIK_DOCUMENT_ROOT . '/piwik.js',
+                                'minified /piwik.js is out of date, please re-generate the minified /piwik.js using instructions in /js/README'
+        );
+    }
+
     public function testTmpDirectoryContainsGitKeep()
     {
         $this->assertFileExists(PIWIK_DOCUMENT_ROOT . '/tmp/.gitkeep');
@@ -422,7 +459,7 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         }
 
         // in build-package.sh we have: `find ./ -iname 'tests' -type d -prune -exec rm -rf {} \;`
-        if(stripos($file, "/tests/") !== false) {
+        if($this->isFileBelongToTests($file)) {
             return false;
         }
         if(strpos($file, PIWIK_INCLUDE_PATH . "/tmp/") !== false) {
@@ -585,5 +622,53 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
             $filesizes[$file] = $filesize;
         }
         return $filesizes;
+    }
+
+    /**
+     * @param $files
+     * @throws Exception
+     */
+    protected function checkFilesDoNotHaveWeirdSpaces($files)
+    {
+        $weirdSpace = ' ';
+        $this->assertEquals('c2a0', bin2hex($weirdSpace), "Checking that this test file was not tampered with");
+        $this->assertEquals('20', bin2hex(' '), "Checking that this test file was not tampered with");
+
+        $errors = array();
+        $countFileChecked = 0;
+        foreach ($files as $file) {
+
+            if($this->isFileBelongToTests($file)) {
+                continue;
+            }
+
+            if(strpos($file, 'vendor/php-di/php-di/website/') !== false) {
+                continue;
+            }
+
+            $content = file_get_contents($file);
+            $posWeirdSpace = strpos($content, $weirdSpace);
+            if ($posWeirdSpace !== false) {
+                $around = substr($content, $posWeirdSpace - 20, 40);
+                $around = trim($around);
+                $errors[] = "File $file contains an unusual space character, please remove it from here: ...$around...";
+            }
+
+            $countFileChecked++;
+        }
+        $this->assertTrue($countFileChecked > 100, "expected to test at least 100 files, but tested only " . $countFileChecked);
+
+        if (!empty($errors)) {
+            throw new Exception(implode(",\n\n ", $errors));
+        }
+    }
+
+    /**
+     * @param $file
+     * @return bool
+     */
+    private function isFileBelongToTests($file)
+    {
+        return stripos($file, "/tests/") !== false;
     }
 }

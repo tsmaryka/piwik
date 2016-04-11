@@ -53,10 +53,11 @@ class ModelTest extends IntegrationTestCase
                       AND log_visit.visit_last_action_time >= ?
                       AND log_visit.visit_last_action_time <= ?
                     ORDER BY idsite, visit_last_action_time DESC
-                    LIMIT 100
+                    LIMIT 0, 100
                  ) AS sub
                  GROUP BY sub.idvisit
                  ORDER BY sub.visit_last_action_time DESC
+                 LIMIT 100
         ';
         $expectedBind = array(
             '1',
@@ -93,10 +94,11 @@ class ModelTest extends IntegrationTestCase
                       AND log_visit.visit_last_action_time >= ?
                       AND log_visit.visit_last_action_time <= ?
                     ORDER BY visit_last_action_time DESC
-                    LIMIT 100
+                    LIMIT 0, 100
                  ) AS sub
                  GROUP BY sub.idvisit
                  ORDER BY sub.visit_last_action_time DESC
+                 LIMIT 100
         ';
         $expectedBind = array(
             '2',
@@ -135,6 +137,7 @@ class ModelTest extends IntegrationTestCase
                  ) AS sub
                  GROUP BY sub.idvisit
                  ORDER BY sub.visit_last_action_time DESC
+                 LIMIT 100
         ';
         $expectedBind = array(
             '1',
@@ -154,7 +157,7 @@ class ModelTest extends IntegrationTestCase
             $period = 'month',
             $date = '2010-01-01',
             $segment = 'customVariablePageName1==Test',
-            $offset = 0,
+            $offset = 10,
             $limit = 100,
             $visitorId = 'abc',
             $minTimestamp = false,
@@ -175,13 +178,13 @@ class ModelTest extends IntegrationTestCase
                           AND log_visit.visit_last_action_time <= ? )
                           AND ( log_link_visit_action.custom_var_k1 = ? )
                         ORDER BY idsite, visit_last_action_time DESC
-                        LIMIT 100
+                        LIMIT 10, 1000
                         ) AS log_inner
                     ORDER BY idsite, visit_last_action_time DESC
-                    LIMIT 100
                  ) AS sub
                  GROUP BY sub.idvisit
                  ORDER BY sub.visit_last_action_time DESC
+                 LIMIT 100
         ';
         $expectedBind = array(
             '1',

@@ -56,8 +56,34 @@ function getProcessedFilePath(fileName) {
     return path.join(processedScreenshotDir, fileName);
 }
 
-function getProcessedScreenshotPath(screenName) {
-    return getProcessedFilePath(screenName + '.png');
+
+function failCapture(fileTypeString, pageRenderer, testInfo, expectedFilePath, processedFilePath, message, done) {
+
+    app.diffViewerGenerator.failures.push(testInfo);
+
+    var expectedPath = testInfo.expected ? path.resolve(testInfo.expected) :
+            (expectedFilePath + " (not found)"),
+        processedPath = testInfo.processed ? path.resolve(testInfo.processed) :
+            (processedFilePath + " (not found)");
+
+    var indent = "     ";
+    var failureInfo = message + "\n";
+    failureInfo += indent + "Url to reproduce: " + pageRenderer.getCurrentUrl() + "\n";
+    failureInfo += indent + "Generated " + fileTypeString + " : " + processedPath + "\n";
+    failureInfo += indent + "Expected " + fileTypeString + ": " + expectedPath + "\n";
+
+    failureInfo += getPageLogsString(pageRenderer.pageLogs, indent);
+
+    error = new AssertionError(message);
+
+    // stack traces are useless so we avoid the clutter w/ this
+    error.stack = failureInfo;
+
+    done(error);
+}
+
+function getScreenshotDiffDir(dirsBase) {
+    return path.join(options['store-in-ui-tests-repo'] ? uiTestsDir : dirsBase, config.screenshotDiffDir);
 }
 
 function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonThreshold, done) {
@@ -66,15 +92,12 @@ function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonTh
         throw new Error("No 'done' callback specified in capture assertion.");
     }
 
-    var screenshotFileName = screenName + '.png',
+    var screenshotFileName = screenName,
         dirsBase = app.runner.suite.baseDirectory,
-
         expectedScreenshotDir = path.join(dirsBase, config.expectedScreenshotsDir),
-        expectedScreenshotPath = path.join(expectedScreenshotDir, compareAgainst + '.png'),
-
-        processedScreenshotPath = getProcessedScreenshotPath(screenName);
-
-        screenshotDiffDir = path.join(options['store-in-ui-tests-repo'] ? uiTestsDir : dirsBase, config.screenshotDiffDir);
+        expectedScreenshotPath = path.join(expectedScreenshotDir, compareAgainst),
+        processedScreenshotPath = getProcessedFilePath(screenName),
+        screenshotDiffDir = getScreenshotDiffDir(dirsBase);
 
     if (!fs.isDirectory(screenshotDiffDir)) {
         fs.makeTree(screenshotDiffDir);
@@ -100,27 +123,7 @@ function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonTh
             };
 
             var fail = function (message) {
-                app.diffViewerGenerator.failures.push(testInfo);
-
-                var expectedPath = testInfo.expected ? path.resolve(testInfo.expected) :
-                        (expectedScreenshotPath + " (not found)"),
-                    processedPath = testInfo.processed ? path.resolve(testInfo.processed) :
-                        (processedScreenshotPath + " (not found)");
-
-                var indent = "     ";
-                var failureInfo = message + "\n";
-                failureInfo += indent + "Url to reproduce: " + pageRenderer.getCurrentUrl() + "\n";
-                failureInfo += indent + "Generated screenshot: " + processedPath + "\n";
-                failureInfo += indent + "Expected screenshot: " + expectedPath + "\n";
-
-                failureInfo += getPageLogsString(pageRenderer.pageLogs, indent);
-
-                error = new AssertionError(message);
-
-                // stack traces are useless so we avoid the clutter w/ this
-                error.stack = failureInfo;
-
-                done(error);
+                failCapture("screenshot", pageRenderer, testInfo, expectedScreenshotPath, processedScreenshotPath, message, done);
             };
 
             var pass = function () {
@@ -218,18 +221,20 @@ function compareContents(compareAgainst, pageSetupFn, done) {
     }
 
     var dirsBase = app.runner.suite.baseDirectory,
-
         expectedScreenshotDir = path.join(dirsBase, config.expectedScreenshotsDir),
         expectedFilePath = path.join(expectedScreenshotDir, compareAgainst),
-
         processedFilePath = getProcessedFilePath(compareAgainst),
+        screenshotDiffDir = getScreenshotDiffDir(dirsBase);
 
-        processedScreenshotPath = getProcessedScreenshotPath(compareAgainst);
+    if (!fs.isDirectory(screenshotDiffDir)) {
+        fs.makeTree(screenshotDiffDir);
+    }
 
     pageSetupFn(pageRenderer);
 
+
     try {
-        pageRenderer.capture(processedScreenshotPath, function (err) {
+        pageRenderer.capture(processedFilePath, function (err) {
             if (err) {
                 var indent = "     ";
                 err.stack = err.message + "\n" + indent + getPageLogsString(pageRenderer.pageLogs, indent);
@@ -239,17 +244,7 @@ function compareContents(compareAgainst, pageSetupFn, done) {
             }
 
             var fail = function (message) {
-                var indent = "     ";
-                var failureInfo = message + "\n";
-                failureInfo += indent + "Url to reproduce: " + pageRenderer.getCurrentUrl() + "\n";
-                failureInfo += getPageLogsString(pageRenderer.pageLogs, indent);
-
-                error = new AssertionError(message);
-
-                // stack traces are useless so we avoid the clutter w/ this
-                error.stack = failureInfo;
-
-                done(error);
+                failCapture("file", pageRenderer, testInfo, expectedFilePath, processedFilePath, message, done);
             };
 
             var pass = function () {
@@ -264,12 +259,20 @@ function compareContents(compareAgainst, pageSetupFn, done) {
 
             fs.write(processedFilePath, processed);
 
-            if (!fs.isFile(expectedFilePath)) {
-                fail("No expected output file found at " + expectedFilePath + ".");
+            var filename = processedFilePath.split(/[\\/]/).pop();
+            var testInfo = {
+                name: filename,
+                processed: fs.isFile(processedFilePath) ? processedFilePath : null,
+                expected: fs.isFile(expectedFilePath) ? expectedFilePath : null,
+                baseDirectory: dirsBase
+            };
+
+            if (!fs.isFile(testInfo.expected)) {
+                fail("No expected output file found at " + testInfo.expected + ".");
                 return;
             }
 
-            var expected = fs.read(expectedFilePath);
+            var expected = fs.read(testInfo.expected);
 
             if (processed == expected) {
                 pass();
@@ -353,7 +356,7 @@ chai.Assertion.addChainableMethod('contains', function () {
         throw new Error("No 'done' callback specified in 'contains' assertion.");
     }
 
-    var capturePath = screenName ? getProcessedScreenshotPath(screenName) : null;
+    var capturePath = screenName ? getProcessedFilePath(screenName) : null;
 
     pageRenderer.capture(capturePath, function (err) {
         var indent = "     ";
