@@ -367,6 +367,7 @@ class CronArchive
                 continue;
             }
 
+	    try {
             $skipWebsiteForced = in_array($idSite, $this->shouldSkipSpecifiedSites);
             if ($skipWebsiteForced) {
                 $this->logger->info("Skipped website id $idSite, found in --skip-idsites ");
@@ -420,6 +421,11 @@ class CronArchive
              * @param int $idSite The ID of the site we're archiving data for.
              */
             Piwik::postEvent('CronArchive.archiveSingleSite.finish', array($idSite, $completed));
+ 	    
+	    } catch (UnexpectedWebsiteFoundException $e) {
+            	// this website was deleted in the meantime
+           	$this->logger->info("Skipped website id $idSite, got: UnexpectedWebsiteFoundException, " . $timerWebsite->__toString());
+            }
         } while (!empty($idSite));
 
         $this->logger->info("Done archiving!");
