@@ -424,7 +424,7 @@ class CronArchive
  	    
 	    } catch (UnexpectedWebsiteFoundException $e) {
             	// this website was deleted in the meantime
-           	$this->logger->info("Skipped website id $idSite, got: UnexpectedWebsiteFoundException, " . $timerWebsite->__toString());
+           	$this->logger->info("Skipped website id $idSite, got: UnexpectedWebsiteFoundException, " . $timer->__toString());
             }
         } while (!empty($idSite));
 
