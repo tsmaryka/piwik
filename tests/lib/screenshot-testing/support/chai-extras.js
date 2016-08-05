@@ -45,15 +45,37 @@ function getPageLogsString(pageLogs, indent) {
 // add capture assertion
 var pageRenderer = new PageRenderer(config.piwikUrl + path.join("tests", "PHPUnit", "proxy"));
 
+
+function getExpectedFilePath(fileName) {
+    var expectedScreenshotDir = path.join(app.runner.suite.baseDirectory, config.expectedScreenshotsDir);
+
+    fileName = assumeFileIsImageIfNotSpecified(fileName);
+
+    return path.join(expectedScreenshotDir, fileName);
+}
+
 function getProcessedFilePath(fileName) {
-    var dirsBase = app.runner.suite.baseDirectory,
-        processedScreenshotDir = path.join(options['store-in-ui-tests-repo'] ? uiTestsDir : dirsBase, config.processedScreenshotsDir);
+    var pathToUITests = options['store-in-ui-tests-repo'] ? uiTestsDir : app.runner.suite.baseDirectory;
+    var processedScreenshotDir = path.join(pathToUITests, config.processedScreenshotsDir);
 
     if (!fs.isDirectory(processedScreenshotDir)) {
         fs.makeTree(processedScreenshotDir);
     }
+    fileName = assumeFileIsImageIfNotSpecified(fileName);
 
     return path.join(processedScreenshotDir, fileName);
+}
+
+function assumeFileIsImageIfNotSpecified(filename) {
+    if(!endsWith(filename, '.png') && !endsWith(filename, '.txt') ) {
+        return filename + '.png';
+    }
+    return filename;
+}
+
+function endsWith(string, needle)
+{
+    return string.substr(-1 * needle.length, needle.length) === needle;
 }
 
 
@@ -69,7 +91,7 @@ function failCapture(fileTypeString, pageRenderer, testInfo, expectedFilePath, p
     var indent = "     ";
     var failureInfo = message + "\n";
     failureInfo += indent + "Url to reproduce: " + pageRenderer.getCurrentUrl() + "\n";
-    failureInfo += indent + "Generated " + fileTypeString + " : " + processedPath + "\n";
+    failureInfo += indent + "Generated " + fileTypeString + ": " + processedPath + "\n";
     failureInfo += indent + "Expected " + fileTypeString + ": " + expectedPath + "\n";
 
     failureInfo += getPageLogsString(pageRenderer.pageLogs, indent);
@@ -82,8 +104,8 @@ function failCapture(fileTypeString, pageRenderer, testInfo, expectedFilePath, p
     done(error);
 }
 
-function getScreenshotDiffDir(dirsBase) {
-    return path.join(options['store-in-ui-tests-repo'] ? uiTestsDir : dirsBase, config.screenshotDiffDir);
+function getScreenshotDiffDir() {
+    return path.join(options['store-in-ui-tests-repo'] ? uiTestsDir : app.runner.suite.baseDirectory, config.screenshotDiffDir);
 }
 
 function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonThreshold, done) {
@@ -92,12 +114,12 @@ function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonTh
         throw new Error("No 'done' callback specified in capture assertion.");
     }
 
-    var screenshotFileName = screenName,
-        dirsBase = app.runner.suite.baseDirectory,
-        expectedScreenshotDir = path.join(dirsBase, config.expectedScreenshotsDir),
-        expectedScreenshotPath = path.join(expectedScreenshotDir, compareAgainst),
+    screenName = assumeFileIsImageIfNotSpecified(screenName);
+    compareAgainst = assumeFileIsImageIfNotSpecified(compareAgainst);
+
+    var expectedScreenshotPath = getExpectedFilePath(compareAgainst),
         processedScreenshotPath = getProcessedFilePath(screenName),
-        screenshotDiffDir = getScreenshotDiffDir(dirsBase);
+        screenshotDiffDir = getScreenshotDiffDir();
 
     if (!fs.isDirectory(screenshotDiffDir)) {
         fs.makeTree(screenshotDiffDir);
@@ -119,7 +141,7 @@ function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonTh
                 name: screenName,
                 processed: fs.isFile(processedScreenshotPath) ? processedScreenshotPath : null,
                 expected: fs.isFile(expectedScreenshotPath) ? expectedScreenshotPath : null,
-                baseDirectory: dirsBase
+                baseDirectory: app.runner.suite.baseDirectory
             };
 
             var fail = function (message) {
@@ -135,14 +157,14 @@ function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonTh
             };
 
             if (!testInfo.processed) {
-                fail("Failed to generate screenshot to " + screenshotFileName + ".");
+                fail("Failed to generate screenshot to " + screenName + ".");
                 return;
             }
 
             if (!testInfo.expected) {
                 app.appendMissingExpected(screenName);
 
-                fail("No expected screenshot found for " + screenshotFileName + ".");
+                fail("No expected screenshot found for " + screenName + ".");
                 return;
             }
 
@@ -183,7 +205,7 @@ function capture(screenName, compareAgainst, selector, pageSetupFn, comparisonTh
 
                 child.on("exit", function (code) {
                     if (testFailure) {
-                        testFailure = 'Processed screenshot does not match expected for ' + screenshotFileName + ' ' + testFailure;
+                        testFailure = 'Processed screenshot does not match expected for ' + screenName + ' ' + testFailure;
                         testFailure += 'TestEnvironment was ' + JSON.stringify(testEnvironment);
                     }
 
@@ -220,11 +242,12 @@ function compareContents(compareAgainst, pageSetupFn, done) {
         throw new Error("No 'done' callback specified in 'pageContents' assertion.");
     }
 
-    var dirsBase = app.runner.suite.baseDirectory,
-        expectedScreenshotDir = path.join(dirsBase, config.expectedScreenshotsDir),
-        expectedFilePath = path.join(expectedScreenshotDir, compareAgainst),
+    compareAgainst = assumeFileIsImageIfNotSpecified(compareAgainst);
+
+    var screenshotDiffDir = getScreenshotDiffDir(),
         processedFilePath = getProcessedFilePath(compareAgainst),
-        screenshotDiffDir = getScreenshotDiffDir(dirsBase);
+        expectedFilePath = getExpectedFilePath(compareAgainst);
+
 
     if (!fs.isDirectory(screenshotDiffDir)) {
         fs.makeTree(screenshotDiffDir);
@@ -264,7 +287,7 @@ function compareContents(compareAgainst, pageSetupFn, done) {
                 name: filename,
                 processed: fs.isFile(processedFilePath) ? processedFilePath : null,
                 expected: fs.isFile(expectedFilePath) ? expectedFilePath : null,
-                baseDirectory: dirsBase
+                baseDirectory: app.runner.suite.baseDirectory
             };
 
             if (!fs.isFile(testInfo.expected)) {
