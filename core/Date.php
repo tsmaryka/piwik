@@ -220,6 +220,19 @@ class Date
     }
 
     /**
+     * Returns the offset to UTC time for the given timezone
+     *
+     * @param $timezone
+     * @return int offest in minutes
+     */
+    public static function getUtcOffset($timezone)
+    {
+        $timestampUTC       = self::today()->getTimestampUTC();
+        $timestampZone      = self::adjustForTimezone($timestampUTC, $timezone);
+        return ($timestampZone - $timestampUTC);
+    }
+
+    /**
      * Helper function that returns the offset in the timezone string 'UTC+14'
      * Returns false if the timezone is not UTC+X or UTC-X
      *
@@ -245,7 +258,7 @@ class Date
     }
 
     /**
-     * Converts a timestamp in a from UTC to a timezone.
+     * Converts a timestamp from UTC to a timezone.
      *
      * @param int $timestamp The UNIX timestamp to adjust.
      * @param string $timezone The timezone to adjust to.
@@ -253,6 +266,10 @@ class Date
      */
     public static function adjustForTimezone($timestamp, $timezone)
     {
+        if (empty($timezone)) {
+            return $timestamp;
+        }
+
         // manually adjust for UTC timezones
         $utcOffset = self::extractUtcOffset($timezone);
         if ($utcOffset !== false) {

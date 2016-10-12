@@ -21,6 +21,18 @@ try {
     $mysql = false;
 }
 
+use \Piwik\Plugins\CustomPiwikJs\TrackerUpdater;
+use \Piwik\Plugins\CustomPiwikJs\TrackingCode\JsTestPluginTrackerFiles;
+
+$targetFileName = '/tests/resources/piwik.test.js';
+$sourceFile = PIWIK_DOCUMENT_ROOT . TrackerUpdater::DEVELOPMENT_PIWIK_JS;
+$targetFile = PIWIK_DOCUMENT_ROOT . $targetFileName;
+
+$updater = new TrackerUpdater($sourceFile, $targetFile);
+$updater->setTrackerFiles(new JsTestPluginTrackerFiles());
+$updater->checkWillSucceed();
+$updater->update();
+
 if(file_exists("stub.tpl")) {
     echo file_get_contents("stub.tpl");
 }
@@ -60,7 +72,7 @@ testTrackPageViewAsync();
 ?>
  </script>
  <script src="../lib/q-1.4.1/q.js" type="text/javascript"></script>
- <script src="../../js/piwik.js?rand=<?php echo $cacheBuster ?>" type="text/javascript"></script>
+ <script src="../..<?php echo $targetFileName ?>?rand=<?php echo $cacheBuster ?>" type="text/javascript"></script>
  <script src="../../plugins/Overlay/client/urlnormalizer.js" type="text/javascript"></script>
  <script src="piwiktest.js" type="text/javascript"></script>
  <link rel="stylesheet" href="assets/qunit.css" type="text/css" media="screen" />
@@ -597,6 +609,119 @@ function PiwikTest() {
         }
     });
 
+    test("Piwik plugin methods", function() {
+        expect(26);
+        
+        // TESTS FOR retryMissedPluginCalls
+
+        // these 2 calls should fail because they do not exist
+        _paq.push(['MyCustomPlugin::myCustomStaticMethod']);
+        _paq.push(['MyCustomPlugin::myCustomStaticMethod2']);
+        _paq.push(['MyCustomPlugin.myCustomMethod']);
+        
+        // now we define these method
+        var called = 0;
+        var calledStatic = 0;
+        var calledStatic2 = 0;
+        Piwik.MyCustomPlugin = {myCustomStaticMethod: function () { calledStatic++; }};
+        var asyncTrackers = Piwik.getAsyncTrackers();
+        var i = 0;
+        for (i; i < asyncTrackers.length; i++) {
+            asyncTrackers[i].MyCustomPlugin = {myCustomMethod: function () { called++; }};
+        }
+        
+        // now we retry those calls
+        Piwik.retryMissedPluginCalls();
+        
+        strictEqual(1, called, "retryMissedPluginCalls, successfully executed non static method once it is defined");
+        strictEqual(1, calledStatic, "retryMissedPluginCalls, successfully executed static method once it is defined");
+        strictEqual(0, calledStatic2, "retryMissedPluginCalls, should not have executed not defined method");
+
+        // defining another method
+        Piwik.MyCustomPlugin.myCustomStaticMethod2 = function () { calledStatic2++; };
+
+        // retrying again should not call the missed plugin calls again because they are now defined
+        Piwik.retryMissedPluginCalls();
+
+        strictEqual(1, called, "retryMissedPluginCalls, should not execute a resolved missed call again");
+        strictEqual(1, calledStatic, "retryMissedPluginCalls, should not execute a resolved missed call again");
+        strictEqual(1, calledStatic2, "retryMissedPluginCalls, successfully executed static method 2 once it is defined");
+        
+        // calling them now that they are defined increases the counter immediately
+        _paq.push(['MyCustomPlugin::myCustomStaticMethod']);
+        _paq.push(['MyCustomPlugin.myCustomMethod']);
+
+        strictEqual(2, called, "executing static plugin method works directly if defined");
+        strictEqual(2, calledStatic, "executing plugin method works directly if defined");
+        strictEqual(1, calledStatic2, "a method is only executed when actually pushed");
+
+        // TESTS FOR events
+        var calledEvent1 = 0;
+        var calledEvent1_1 = 0;
+        var calledEvent2 = 0;
+        var passedArgs = null;
+
+        function callEvent1() { calledEvent1++; }
+        function callEvent1_1() { calledEvent1_1++; }
+        function callEvent2(arg1, arg2) { calledEvent2++; passedArgs = [arg1, arg2]; }
+
+        Piwik.on('myEvent1', callEvent1);
+        Piwik.on('myEvent2', callEvent2);
+        
+        Piwik.trigger('myEvent1', []);
+        strictEqual(1, calledEvent1, "event, should trigger event and call handler callEvent1");
+
+        Piwik.trigger('myEvent1', []);
+        strictEqual(2, calledEvent1, "event, should trigger event whenever it is called and call handler callEvent1 again");
+        strictEqual(0, calledEvent2, "event, should only execute event listeners that listen to that triggered event");
+
+        Piwik.trigger('myEvent2', ['arg1', 'arg2']);
+        strictEqual(2, calledEvent1, "event, should not have executed that event because it has different name");
+        strictEqual(1, calledEvent2, "event, should have executed different handler this time");
+        deepEqual(['arg1', 'arg2'], passedArgs, "event, should be possible to pass arguments to events");
+
+        Piwik.on('myEvent1', callEvent1_1);
+
+        Piwik.trigger('myEvent1', []);
+        strictEqual(3, calledEvent1, "event, should call multiple event handlers when many listen to same event");
+        strictEqual(1, calledEvent1_1, "event, should call multiple event handlers when many listen to same event");
+
+        Piwik.off('myEvent1', callEvent1);
+
+        Piwik.trigger('myEvent1', []);
+        strictEqual(3, calledEvent1, "event, it is possible to remove an event listener and it will not be executed anymore");
+        strictEqual(2, calledEvent1_1, "event, should still call other event listeners when others were removed");
+
+        /**
+         * TESTING DOM
+         **/
+        var loaded = false;
+        var ready = false;
+        var customEvent = false;
+
+        strictEqual('object', typeof Piwik.DOM, "Piwik.DOM object is defined");
+        strictEqual('function', typeof Piwik.DOM.onReady, "DOM.onReady method is defined");
+        strictEqual('function', typeof Piwik.DOM.onLoad, "DOM.onLoad method is defined");
+        strictEqual('function', typeof Piwik.DOM.addEventListener, "DOM.addEventListener method is defined");
+
+        Piwik.DOM.onLoad(function () {
+            loaded = true;
+        });
+        Piwik.DOM.onReady(function () {
+            ready = true;
+        });
+        
+        strictEqual(true, ready, "onReady, DOM should be ready");
+        strictEqual(true, loaded, "event, DOM should be loaded");
+
+        Piwik.DOM.addEventListener(_e('click7'), 'myCustomEvent', function () {
+            customEvent = true;
+        });
+        triggerEvent(_e('click7'), 'myCustomEvent');
+
+        strictEqual(true, customEvent, "DOM.addEventListener works");
+    });
+    
     test("Query", function() {
         var tracker = Piwik.getTracker();
         var query   = tracker.getQuery();
@@ -1971,7 +2096,7 @@ function PiwikTest() {
     });
 
     test("API methods", function() {
-        expect(70);
+        expect(71);
 
         equal( typeof Piwik.addPlugin, 'function', 'addPlugin' );
         equal( typeof Piwik.addPlugin, 'function', 'addTracker' );
@@ -2039,6 +2164,7 @@ function PiwikTest() {
         equal( typeof tracker.trackGoal, 'function', 'trackGoal' );
         equal( typeof tracker.trackLink, 'function', 'trackLink' );
         equal( typeof tracker.trackPageView, 'function', 'trackPageView' );
+        equal( typeof tracker.trackRequest, 'function', 'trackRequest' );
         // content
         equal( typeof tracker.trackAllContentImpressions, 'function', 'trackAllContentImpressions' );
         equal( typeof tracker.trackVisibleContentImpressions, 'function', 'trackVisibleContentImpressions' );
@@ -2997,7 +3123,7 @@ function PiwikTest() {
 
         // Calling undefined methods should generate an error
         function callNonExistingMethod() {
-            _paq.push(['NonExistingFunction should error and display the error in the console.']);
+            _paq.push(['NonExistingFunction should error and display the error in the console']);
         }
         function callNonExistingMethodWithParameter() {
             _paq.push(['NonExistingFunction should not error', 'this is a parameter']);
@@ -3172,7 +3298,7 @@ if ($mysql) {
     });
 
     test("tracking", function() {
-        expect(118);
+        expect(119);
 
         // Prevent Opera and HtmlUnit from performing the default action (i.e., load the href URL)
         var stopEvent = function (evt) {
@@ -3351,6 +3477,9 @@ if ($mysql) {
         var visitorIdEnd = tracker.getVisitorId();
         ok( visitorIdStart == visitorIdEnd, "tracker.getVisitorId() same at the start and end of process");
 
+        // Tracker custom request
+        tracker.trackRequest('myFoo=bar&baz=1');
+
         // Custom variables
         tracker.storeCustomVariablesInCookie();
         tracker.setCookieNamePrefix("PREFIX");
@@ -3495,7 +3624,7 @@ if ($mysql) {
             xhr.open("GET", "piwik.php?requests=" + getToken(), false);
             xhr.send(null);
             results = xhr.responseText;
-            equal( (/<span\>([0-9]+)\<\/span\>/.exec(results))[1], "36", "count tracking events" );
+            equal( (/<span\>([0-9]+)\<\/span\>/.exec(results))[1], "37", "count tracking events" );
 
             // firing callback
             ok( trackLinkCallbackFired, "trackLink() callback fired" );
@@ -3528,6 +3657,9 @@ if ($mysql) {
             ok( /DeleteCustomVariableCookie/.test( results ), "tracking request deleting custom variable" );
             ok( /DoTrack/.test( results ), "setDoNotTrack(false)" );
             ok( ! /DoNotTrack/.test( results ), "setDoNotTrack(true)" );
+
+            // custom tracking request
+            ok( /myFoo=bar&baz=1&idsite=1/.test( results ), "trackRequest sends custom parameters");
 
             // Test Custom variables
             ok( /SaveCustomVariableCookie.*&cvar=%7B%222%22%3A%5B%22cookiename2PAGE%22%2C%22cookievalue2PAGE%22%5D%7D.*&_cvar=%7B%221%22%3A%5B%22cookiename%22%2C%22cookievalue%22%5D%2C%222%22%3A%5B%22cookiename2%22%2C%22cookievalue2%22%5D%7D/.test(results), "test custom vars are set");
