@@ -8,7 +8,6 @@
 
 namespace Piwik\Plugins\Goals\tests\Integration;
 
-use Piwik\Access;
 use Piwik\Piwik;
 use Piwik\Plugins\Goals\API;
 use Piwik\Tests\Framework\Fixture;
@@ -61,6 +60,13 @@ class APITest extends IntegrationTestCase
         $idGoal = $this->api->addGoal($this->idSite, 'MyName', 'url', 'http://www.test.de', 'exact', true, 50, true);
 
         $this->assertGoal($idGoal, 'MyName', 'url', 'http://www.test.de', 'exact', 1, 50, 1);
+    }
+
+    public function test_addGoal_ShouldSucceed_IfExactPageTitle()
+    {
+        $idGoal = $this->api->addGoal($this->idSite, 'MyName', 'title', 'normal title', 'exact', true, 50, true);
+
+        $this->assertGoal($idGoal, 'MyName', 'title', 'normal title', 'exact', 1, 50, 1);
     }
 
     /**
@@ -179,6 +185,42 @@ class APITest extends IntegrationTestCase
 
         $this->api->deleteGoal($this->idSite, $idGoal);
         $this->assertHasNoGoals();
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage checkUserHasViewAccess Fake exception
+     */
+    public function test_getGoal_shouldThrowException_IfNotEnoughPermission()
+    {
+        $idGoal = $this->createAnyGoal();
+        $this->assertSame(1, $idGoal);
+        $this->setNonAdminUser();
+        $this->api->getGoal($this->idSite, $idGoal);
+    }
+
+    public function test_getGoal_shouldReturnNullIfItDoesNotExist()
+    {
+        $this->assertNull($this->api->getGoal($this->idSite, $idGoal = 99));
+    }
+
+    public function test_getGoal_shouldReturnExistingGoal()
+    {
+        $idGoal = $this->createAnyGoal();
+        $this->assertSame(1, $idGoal);
+        $goal = $this->api->getGoal($this->idSite, $idGoal);
+        $this->assertEquals(array(
+            'idsite' => '1',
+            'idgoal' => '1',
+            'name' => 'MyName1',
+            'match_attribute' => 'event_action',
+            'pattern' => 'test',
+            'pattern_type' => 'exact',
+            'case_sensitive' => '0',
+            'allow_multiple' => '0',
+            'revenue' => '0',
+            'deleted' => '0',
+        ), $goal);
     }
 
     private function assertHasGoals()

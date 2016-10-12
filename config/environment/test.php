@@ -40,9 +40,23 @@ return array(
     'Piwik\Access' => DI\decorate(function ($previous, ContainerInterface $c) {
         $testUseMockAuth = $c->get('test.vars.testUseMockAuth');
         if ($testUseMockAuth) {
+            $idSitesAdmin = $c->get('test.vars.idSitesAdminAccess');
+            $idSitesView = $c->get('test.vars.idSitesViewAccess');
             $access = new FakeAccess();
-            FakeAccess::$superUser = true;
-            FakeAccess::$superUserLogin = 'superUserLogin';
+
+            if (!empty($idSitesView)) {
+                FakeAccess::$superUser = false;
+                FakeAccess::$idSitesView = $idSitesView;
+                FakeAccess::$idSitesAdmin = !empty($idSitesAdmin) ? $idSitesAdmin : array();
+                FakeAccess::$identity = 'viewUserLogin';
+            } elseif (!empty($idSitesAdmin)) {
+                FakeAccess::$superUser = false;
+                FakeAccess::$idSitesAdmin = $idSitesAdmin;
+                FakeAccess::$identity = 'adminUserLogin';
+            } else {
+                FakeAccess::$superUser = true;
+                FakeAccess::$superUserLogin = 'superUserLogin';
+            }
             return $access;
         } else {
             return $previous;

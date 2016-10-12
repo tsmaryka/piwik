@@ -10,6 +10,7 @@ namespace Piwik;
 
 use Exception;
 use Piwik\Container\StaticContainer;
+use Piwik\Plugins\SitesManager\API as SitesManagerApi;
 
 /**
  * Singleton that manages user access to Piwik resources.
@@ -145,7 +146,7 @@ class Access
         $this->login = null;
 
         // if the Auth wasn't set, we may be in the special case of setSuperUser(), otherwise we fail TODO: docs + review
-        if ($this->auth === null) {
+        if (!isset($this->auth)) {
             return false;
         }
 
@@ -207,7 +208,8 @@ class Access
         if ($this->hasSuperUserAccess) {
             if (empty($this->idsitesByAccess['superuser'])) {
                 try {
-                    $allSitesId = Plugins\SitesManager\API::getInstance()->getAllSitesId();
+                    $api = SitesManagerApi::getInstance();
+                    $allSitesId = $api->getAllSitesId();
                 } catch (\Exception $e) {
                     $allSitesId = array();
                 }
@@ -336,19 +338,29 @@ class Access
     }
 
     /**
+     * Returns `true` if the current user has admin access to at least one site.
+     *
+     * @return bool
+     */
+    public function isUserHasSomeAdminAccess()
+    {
+        if ($this->hasSuperUserAccess()) {
+            return true;
+        }
+
+        $idSitesAccessible = $this->getSitesIdWithAdminAccess();
+
+        return count($idSitesAccessible) > 0;
+    }
+
+    /**
      * If the user doesn't have an ADMIN access for at least one website, throws an exception
      *
      * @throws \Piwik\NoAccessException
      */
     public function checkUserHasSomeAdminAccess()
     {
-        if ($this->hasSuperUserAccess()) {
-            return;
-        }
-
-        $idSitesAccessible = $this->getSitesIdWithAdminAccess();
-
-        if (count($idSitesAccessible) == 0) {
+        if (!$this->isUserHasSomeAdminAccess()) {
             throw new NoAccessException(Piwik::translate('General_ExceptionPrivilegeAtLeastOneWebsite', array('admin')));
         }
     }
@@ -450,17 +462,18 @@ class Access
     {
         $isSuperUser = self::getInstance()->hasSuperUserAccess();
 
-        self::getInstance()->setSuperUserAccess(true);
+        $access = self::getInstance();
+        $access->setSuperUserAccess(true);
 
         try {
             $result = $function();
         } catch (Exception $ex) {
-            self::getInstance()->setSuperUserAccess($isSuperUser);
+            $access->setSuperUserAccess($isSuperUser);
 
             throw $ex;
         }
 
-        self::getInstance()->setSuperUserAccess($isSuperUser);
+        $access->setSuperUserAccess($isSuperUser);
 
         return $result;
     }

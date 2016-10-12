@@ -50,7 +50,7 @@ class DoNotTrackHeaderChecker
             // this is an optional supplement to the site's tracking status resource at:
             //     /.well-known/dnt
             // per Tracking Preference Expression (draft)
-            header('Tk: 1');
+            Common::sendHeader('Tk: 1');
         }
     }
 
@@ -146,6 +146,9 @@ class DoNotTrackHeaderChecker
 
             // Maxthon
             'Maxthon',
+            
+            // Epiphany - https://github.com/piwik/piwik/issues/8682
+            'Epiphany',
         );
     }
 }

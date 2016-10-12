@@ -18,10 +18,11 @@ use Piwik\Container\StaticContainer;
 use Piwik\EventDispatcher;
 use Piwik\Filesystem;
 use Piwik\Log;
-use Piwik\Option;
+use Piwik\Notification;
 use Piwik\Piwik;
 use Piwik\Plugin;
 use Piwik\PluginDeactivatedException;
+use Piwik\Session;
 use Piwik\Theme;
 use Piwik\Tracker;
 use Piwik\Translation\Translator;
@@ -440,16 +441,10 @@ class Manager
     public function installLoadedPlugins()
     {
         Log::debug("Loaded plugins: " . implode(", ", array_keys($this->getLoadedPlugins())));
-        $messages = array();
+        
         foreach ($this->getLoadedPlugins() as $plugin) {
-            try {
-                $this->installPluginIfNecessary($plugin);
-            } catch (\Exception $e) {
-                $messages[] = $e->getMessage();
-            }
+            $this->installPluginIfNecessary($plugin);
         }
-
-        return $messages;
     }
 
     /**
@@ -499,7 +494,7 @@ class Manager
     {
         $existingPlugins = $this->readPluginsDirectory();
         $isPluginInFilesystem = array_search($pluginName, $existingPlugins) !== false;
-        return Filesystem::isValidFilename($pluginName)
+        return $this->isValidPluginName($pluginName)
         && $isPluginInFilesystem;
     }
 
@@ -835,6 +830,15 @@ class Manager
 
                 if ($newPlugin->hasMissingDependencies()) {
                     $this->deactivatePlugin($pluginName);
+
+                    // add this state we do not know yet whether current user has super user access. We do not even know
+                    // if someone is actually logged in.
+                    $message  = sprintf('We disabled the plugin %s as it has missing dependencies.', $pluginName);
+                    $message .= ' Please contact your Piwik administrator.';
+
+                    $notification = new Notification($message);
+                    $notification->context = Notification::CONTEXT_ERROR;
+                    Notification\Manager::notify('PluginManager_PluginDeactivated', $notification);
                     continue;
                 }
 
@@ -896,6 +900,11 @@ class Manager
         return $newPlugin;
     }
 
+    public function isValidPluginName($pluginName)
+    {
+        return (bool) preg_match('/^[a-zA-Z]([a-zA-Z0-9]*)$/D', $pluginName);
+    }
+
     /**
      * @param $pluginName
      * @return Plugin
@@ -906,8 +915,8 @@ class Manager
         $pluginFileName = sprintf("%s/%s.php", $pluginName, $pluginName);
         $pluginClassName = $pluginName;
 
-        if (!Filesystem::isValidFilename($pluginName)) {
-            throw new \Exception(sprintf("The plugin filename '%s' is not a valid filename", $pluginFileName));
+        if (!$this->isValidPluginName($pluginName)) {
+            throw new \Exception(sprintf("The plugin filename '%s' is not a valid plugin name", $pluginFileName));
         }
 
         $path = self::getPluginsDirectory() . $pluginFileName;
@@ -1071,11 +1080,20 @@ class Manager
 
         if ($saveConfig) {
             PiwikConfig::getInstance()->forceSave();
+            $this->clearCache($pluginName);
         }
     }
 
     public function isTrackerPlugin(Plugin $plugin)
     {
+        if (!$this->isPluginInstalled($plugin->getPluginName())) {
+            return false;
+        }
+        
+        if ($plugin->isTrackerPlugin()) {
+            return true;
+        }
+
         $dimensions = VisitDimension::getDimensions($plugin);
         if (!empty($dimensions)) {
             return true;
@@ -1099,10 +1117,6 @@ class Manager
 
         $dimensions = ConversionDimension::getDimensions($plugin);
         if (!empty($dimensions)) {
-            return true;
-        }
-
-        if ($plugin->isTrackerPlugin()) {
             return true;
         }
 

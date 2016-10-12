@@ -302,15 +302,6 @@ class WidgetTest extends SystemTestCase
                         ),
                 ),
                 array (
-                    'name' => 'Providers',
-                    'uniqueId' => 'widgetProvidergetProvider',
-                    'parameters' =>
-                        array (
-                            'module' => 'Provider',
-                            'action' => 'getProvider',
-                        ),
-                ),
-                array (
                     'name' => 'Frequency Overview',
                     'uniqueId' => 'widgetVisitFrequencygetSparklines',
                     'parameters' =>
@@ -844,9 +835,17 @@ class WidgetTest extends SystemTestCase
                             'action' => 'rssChangelog',
                         ),
                 ),
+                array (
+                    'name' => 'Professional Services for Piwik',
+                    'uniqueId' => 'widgetProfessionalServicespromoServices',
+                    'parameters' =>
+                        array (
+                            'module' => 'ProfessionalServices',
+                            'action' => 'promoServices',
+                        ),
+                )
         );
     }
-
 }
 
 

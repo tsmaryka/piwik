@@ -12,5 +12,18 @@
       "email": "",
       "homepage": ""
     }
-  ]
+  ],
+  "support": {
+	    "email": "",
+	    "issues": "",
+	    "forum": "",
+	    "irc": "",
+	    "wiki": "",
+	    "source": "",
+	    "docs": "",
+	    "rss": ""
+  },
+  "homepage": "",
+  "license": "GPL v3+",
+  "keywords": []
 }

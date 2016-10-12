@@ -28,7 +28,7 @@ describe("OptOutForm", function () {
             page.evaluate(function () {
                 $('iframe#optOutIframe').contents().find('input#trackVisits').click();
             });
-            page.wait(1000); // wait for iframe to reload
+            page.wait(2000); // wait for iframe to reload
         }, done);
     });
 
@@ -48,11 +48,12 @@ describe("OptOutForm", function () {
         }, done);
     });
 
-    it("should correclty set opt-out cookie on safari", function (done) {
+    it("should correctly set opt-out cookie on safari", function (done) {
         expect.screenshot('opted-out').to.be.captureSelector('safari-opted-out', 'iframe#optOutIframe', function (page) {
             page.evaluate(function () {
                 $('iframe#optOutIframe').contents().find('input#trackVisits').click();
             });
+            page.wait(1000); // wait for iframe to reload
             page.load(siteUrl); // reload to check that cookie was set
         }, done);
     });

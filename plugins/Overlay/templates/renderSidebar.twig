@@ -1,4 +1,4 @@
-<div> <!-- Wrapper is needed that the html can be jqueryfied -->
+<div> <!-- Wrapper is needed that the html can be jQueryfied -->
 
     <!-- This div is removed by JS and the content is put in the location div -->
     <div class="overlayLocation">
@@ -6,6 +6,11 @@
 		<span data-normalized-url="{{ normalizedUrl }}" data-label="{{ label }}">
 			{{ location }}
 		</span>
+    </div>
+
+    <div class="overlaySegment">
+        <strong>{{ 'General_Segment'|translate }}:</strong>
+        <span>{{ segmentDescription }}</span>
     </div>
 
     {% if data|length > 0 %}

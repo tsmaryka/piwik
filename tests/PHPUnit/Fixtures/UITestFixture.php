@@ -25,13 +25,15 @@ use Piwik\Tests\Framework\Fixture;
 use Piwik\WidgetsList;
 use Piwik\Tests\Framework\OverrideLogin;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
+use Piwik\Plugins\VisitsSummary\API as VisitsSummaryAPI;
+use Piwik\Config as PiwikConfig;
 
 /**
  * Fixture for UI tests.
  */
 class UITestFixture extends SqlDump
 {
-    const FIXTURE_LOCATION = '/tests/resources/OmniFixture-dump.sql.gz';
+    const FIXTURE_LOCATION = '/tests/resources/OmniFixture-dump.sql';
 
     public function __construct()
     {
@@ -45,7 +47,9 @@ class UITestFixture extends SqlDump
 
         parent::setUp();
 
+        self::resetPluginsInstalledConfig();
         self::updateDatabase();
+        self::installAndActivatePlugins($this->getTestEnvironment());
 
         // make sure site has an early enough creation date (for period selector tests)
         Db::get()->update(Common::prefixTable("site"),
@@ -71,6 +75,10 @@ class UITestFixture extends SqlDump
 
     public function performSetUp($setupEnvironmentOnly = false)
     {
+        $this->extraTestEnvVars = array(
+            'loadRealTranslations' => 1,
+        );
+
         parent::performSetUp($setupEnvironmentOnly);
 
         $this->createSegments();
@@ -91,6 +99,12 @@ class UITestFixture extends SqlDump
 
         $this->testEnvironment->forcedNowTimestamp = $forcedNowTimestamp;
         $this->testEnvironment->save();
+
+        // launch archiving so tests don't run out of time
+        print("Archiving in fixture set up...");
+        VisitsSummaryAPI::getInstance()->get('all', 'year', '2012-08-09');
+        VisitsSummaryAPI::getInstance()->get('all', 'year', '2012-08-09', urlencode(OmniFixture::DEFAULT_SEGMENT));
+        print("Done.");
     }
 
     private function addOverlayVisits()

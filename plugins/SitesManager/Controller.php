@@ -13,7 +13,6 @@ use Piwik\API\ResponseBuilder;
 use Piwik\Common;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Piwik;
-use Piwik\Measurable\MeasurableSetting;
 use Piwik\Measurable\MeasurableSettings;
 use Piwik\SettingsPiwik;
 use Piwik\Site;
@@ -64,7 +63,6 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $response = new ResponseBuilder(Common::getRequestVar('format'));
 
         $globalSettings = array();
-
         $globalSettings['keepURLFragmentsGlobal'] = API::getInstance()->getKeepURLFragmentsGlobal();
         $globalSettings['siteSpecificUserAgentExcludeEnabled'] = API::getInstance()->isSiteSpecificUserAgentExcludeEnabled();
         $globalSettings['defaultCurrency'] = API::getInstance()->getDefaultCurrency();
@@ -141,8 +139,8 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
     {
         $path = PIWIK_INCLUDE_PATH . '/libs/PiwikTracker/';
         $filename = 'PiwikTracker.php';
-        header('Content-type: text/php');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        Common::sendHeader('Content-type: text/php');
+        Common::sendHeader('Content-Disposition: attachment; filename="' . $filename . '"');
         return file_get_contents($path . $filename);
     }
 

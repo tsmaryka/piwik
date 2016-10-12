@@ -12,6 +12,7 @@ use Exception;
 use Piwik\Config;
 use Piwik\Container\StaticContainer;
 use Piwik\Filesystem;
+use Piwik\Http;
 use Piwik\Ini\IniReader;
 use Piwik\Plugin\Manager;
 use Piwik\Tests\Framework\TestCase\SystemTestCase;
@@ -27,12 +28,29 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
 {
     private $globalConfig;
 
+    const MINIMUM_PHP_VERSION = '5.3.3';
+
     public function setUp()
     {
         $iniReader = new IniReader();
         $this->globalConfig = $iniReader->readFile(PIWIK_PATH_TEST_TO_ROOT . '/config/global.ini.php');
 
         parent::setUp();
+    }
+
+    public function test_minimumPHPVersion_isEnforced()
+    {
+        global $piwik_minimumPHPVersion;
+        $this->assertEquals(self::MINIMUM_PHP_VERSION, $piwik_minimumPHPVersion, 'minimum PHP version global variable correctly defined');
+    }
+
+    public function test_minimumPhpVersion_isDefinedInComposerJson()
+    {
+        $composerJson = $this->getComposerJsonAsArray();
+        $this->assertEquals(self::MINIMUM_PHP_VERSION, $composerJson['config']['platform']['php']);
+
+        $expectedRequirePhp = '>=' . self::MINIMUM_PHP_VERSION;
+        $this->assertEquals($expectedRequirePhp, $composerJson['require']['php']);
     }
 
     public function test_icoFilesIconsShouldBeInPngFormat()
@@ -120,6 +138,86 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         }
     }
 
+    public function getTemplateFileExtensions()
+    {
+        $extensions = array(
+            array('htm'),
+            array('html'),
+            array('twig'),
+            array('tpl'),
+        );
+        return $extensions;
+    }
+
+    /**
+     * @dataProvider getTemplateFileExtensions
+     */
+    public function testTemplatesDontContainJquery($extension)
+    {
+        $patternFailIfFound = 'jquery';
+
+        // known files that will for sure not contain a "buggy" $patternFailIfFound
+        $whiteListedFiles = array(
+            PIWIK_INCLUDE_PATH . '/plugins/TestRunner/templates/travis.yml.twig',
+            PIWIK_INCLUDE_PATH . '/plugins/CoreUpdater/templates/layout.twig',
+            PIWIK_INCLUDE_PATH . '/plugins/Installation/templates/layout.twig',
+            PIWIK_INCLUDE_PATH . '/plugins/Login/templates/login.twig',
+            PIWIK_INCLUDE_PATH . '/tests/UI/screenshot-diffs/singlediff.html',
+
+            // Note: entries below are paths and any file within these paths will be automatically whitelisted
+            PIWIK_INCLUDE_PATH . '/tests/resources/overlay-test-site-real/',
+            PIWIK_INCLUDE_PATH . '/tests/resources/overlay-test-site/',
+            PIWIK_INCLUDE_PATH . '/vendor/facebook/xhprof/xhprof_html/docs/',
+        );
+
+        $files = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.' . $extension);
+        $this->assertFilesDoNotContain($files, $patternFailIfFound, $whiteListedFiles);
+    }
+
+    /**
+     * @param $files
+     * @param $patternFailIfFound
+     * @param $whiteListedFiles
+     */
+    private function assertFilesDoNotContain($files, $patternFailIfFound, $whiteListedFiles)
+    {
+        $foundPatterns = array();
+        foreach ($files as $file) {
+            if($this->isFileOrPathWhitelisted($whiteListedFiles, $file)) {
+                continue;
+            }
+            $content = file_get_contents($file);
+            $foundPattern = strpos($content, $patternFailIfFound) !== false;
+
+            if($foundPattern) {
+                $foundPatterns[] = $file;
+            }
+        }
+
+        $this->assertEmpty($foundPatterns,
+                sprintf("Forbidden pattern \"%s\" was found in the following files ---> please manually delete these files from Git. \n\n\t%s",
+                    $patternFailIfFound,
+                    implode("\n\t", $foundPatterns)
+                )
+        );
+    }
+
+    /**
+     * @param $whiteListedFiles
+     * @param $file
+     * @return bool
+     */
+    private function isFileOrPathWhitelisted($whiteListedFiles, $file)
+    {
+        foreach ($whiteListedFiles as $whitelistFile) {
+            if (strpos($file, $whitelistFile) === 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     public function testCheckThatGivenPluginsAreDisabledByDefault()
     {
         $pluginsShouldBeDisabled = array(
@@ -182,6 +280,30 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
             $start = fgets($handle, strlen($expectedStart) + 1 );
             $this->assertEquals($start, $expectedStart, "File $file does not start with $expectedStart");
         }
+    }
+
+    public function test_jsfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.js');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
+    public function test_phpfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.php');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
+    public function test_twigfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.twig');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
+    }
+
+    public function test_htmlfilesDoNotContainFakeSpaces()
+    {
+        $js = Filesystem::globr(PIWIK_INCLUDE_PATH, '*.html');
+        $this->checkFilesDoNotHaveWeirdSpaces($js);
     }
 
     public function test_directoriesShouldBeChmod755()
@@ -305,6 +427,18 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue(preg_match($pattern, $contents) == 0);
     }
 
+    public function test_piwikJs_minified_isUpToDate()
+    {
+        Http::fetchRemoteFile('https://github.com/downloads/yui/yuicompressor/yuicompressor-2.4.7.zip', PIWIK_DOCUMENT_ROOT .'/tmp/yuicompressor.zip');
+        shell_exec('unzip -n '. PIWIK_DOCUMENT_ROOT .'/tmp/yuicompressor.zip');
+        shell_exec("sed '/<DEBUG>/,/<\/DEBUG>/d' < ". PIWIK_DOCUMENT_ROOT ."/js/piwik.js | sed 's/eval/replacedEvilString/' | java -jar yuicompressor-2.4.7/build/yuicompressor-2.4.7.jar --type js --line-break 1000 | sed 's/replacedEvilString/eval/' | sed 's/^[/][*]/\/*!/' > " . PIWIK_DOCUMENT_ROOT ."/piwik-minified.js");
+
+        $this->assertFileEquals(PIWIK_DOCUMENT_ROOT . '/piwik-minified.js',
+                                PIWIK_DOCUMENT_ROOT . '/piwik.js',
+                                'minified /piwik.js is out of date, please re-generate the minified /piwik.js using instructions in /js/README'
+        );
+    }
+
     public function testTmpDirectoryContainsGitKeep()
     {
         $this->assertFileExists(PIWIK_DOCUMENT_ROOT . '/tmp/.gitkeep');
@@ -422,7 +556,7 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         }
 
         // in build-package.sh we have: `find ./ -iname 'tests' -type d -prune -exec rm -rf {} \;`
-        if(stripos($file, "/tests/") !== false) {
+        if($this->isFileBelongToTests($file)) {
             return false;
         }
         if(strpos($file, PIWIK_INCLUDE_PATH . "/tmp/") !== false) {
@@ -488,8 +622,7 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
      */
     private function getComposerRequireDevPackages()
     {
-        $composer = file_get_contents(PIWIK_INCLUDE_PATH . '/composer.json');
-        $composerJson = json_decode($composer, $assoc = true);
+        $composerJson = $this->getComposerJsonAsArray();
         $composerDependencyDevOnly = array_keys($composerJson["require-dev"]);
         return $composerDependencyDevOnly;
     }
@@ -528,35 +661,35 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
             'vendor/mnapoli/php-di/website',
             'vendor/mnapoli/php-di/news',
             'vendor/mnapoli/php-di/doc',
-            'vendor/tecnick.com/tcpdf/examples',
-            'vendor/tecnick.com/tcpdf/CHANGELOG.txt',
+            'vendor/tecnickcom/tcpdf/examples',
+            'vendor/tecnickcom/tcpdf/CHANGELOG.txt',
             'vendor/guzzle/guzzle/docs/',
 
             // deleted fonts folders
-            'vendor/tecnick.com/tcpdf/fonts/ae_fonts_2.0',
-            'vendor/tecnick.com/tcpdf/fonts/dejavu-fonts-ttf-2.33',
-            'vendor/tecnick.com/tcpdf/fonts/dejavu-fonts-ttf-2.34',
-            'vendor/tecnick.com/tcpdf/fonts/freefont-20100919',
-            'vendor/tecnick.com/tcpdf/fonts/freefont-20120503',
+            'vendor/tecnickcom/tcpdf/fonts/ae_fonts_2.0',
+            'vendor/tecnickcom/tcpdf/fonts/dejavu-fonts-ttf-2.33',
+            'vendor/tecnickcom/tcpdf/fonts/dejavu-fonts-ttf-2.34',
+            'vendor/tecnickcom/tcpdf/fonts/freefont-20100919',
+            'vendor/tecnickcom/tcpdf/fonts/freefont-20120503',
 
             // In the package script, there is a trailing * so any font matching will be deleted
-            'vendor/tecnick.com/tcpdf/fonts/freemon',
-            'vendor/tecnick.com/tcpdf/fonts/cid',
-            'vendor/tecnick.com/tcpdf/fonts/courier',
-            'vendor/tecnick.com/tcpdf/fonts/aefurat',
-            'vendor/tecnick.com/tcpdf/fonts/dejavusansb',
-            'vendor/tecnick.com/tcpdf/fonts/dejavusansi',
-            'vendor/tecnick.com/tcpdf/fonts/dejavusansmono',
-            'vendor/tecnick.com/tcpdf/fonts/dejavusanscondensed',
-            'vendor/tecnick.com/tcpdf/fonts/dejavusansextralight',
-            'vendor/tecnick.com/tcpdf/fonts/dejavuserif',
-            'vendor/tecnick.com/tcpdf/fonts/freesansi',
-            'vendor/tecnick.com/tcpdf/fonts/freesansb',
-            'vendor/tecnick.com/tcpdf/fonts/freeserifb',
-            'vendor/tecnick.com/tcpdf/fonts/freeserifi',
-            'vendor/tecnick.com/tcpdf/fonts/pdf',
-            'vendor/tecnick.com/tcpdf/fonts/times',
-            'vendor/tecnick.com/tcpdf/fonts/uni2cid',
+            'vendor/tecnickcom/tcpdf/fonts/freemon',
+            'vendor/tecnickcom/tcpdf/fonts/cid',
+            'vendor/tecnickcom/tcpdf/fonts/courier',
+            'vendor/tecnickcom/tcpdf/fonts/aefurat',
+            'vendor/tecnickcom/tcpdf/fonts/dejavusansb',
+            'vendor/tecnickcom/tcpdf/fonts/dejavusansi',
+            'vendor/tecnickcom/tcpdf/fonts/dejavusansmono',
+            'vendor/tecnickcom/tcpdf/fonts/dejavusanscondensed',
+            'vendor/tecnickcom/tcpdf/fonts/dejavusansextralight',
+            'vendor/tecnickcom/tcpdf/fonts/dejavuserif',
+            'vendor/tecnickcom/tcpdf/fonts/freesansi',
+            'vendor/tecnickcom/tcpdf/fonts/freesansb',
+            'vendor/tecnickcom/tcpdf/fonts/freeserifb',
+            'vendor/tecnickcom/tcpdf/fonts/freeserifi',
+            'vendor/tecnickcom/tcpdf/fonts/pdf',
+            'vendor/tecnickcom/tcpdf/fonts/times',
+            'vendor/tecnickcom/tcpdf/fonts/uni2cid',
         );
 
         return $this->isFilePathFoundInArray($file, $filesDeletedFromPackage);
@@ -586,4 +719,63 @@ class ReleaseCheckListTest extends \PHPUnit_Framework_TestCase
         }
         return $filesizes;
     }
+
+    /**
+     * @param $files
+     * @throws Exception
+     */
+    protected function checkFilesDoNotHaveWeirdSpaces($files)
+    {
+        $weirdSpace = ' ';
+        $this->assertEquals('c2a0', bin2hex($weirdSpace), "Checking that this test file was not tampered with");
+        $this->assertEquals('20', bin2hex(' '), "Checking that this test file was not tampered with");
+
+        $errors = array();
+        $countFileChecked = 0;
+        foreach ($files as $file) {
+
+            if($this->isFileBelongToTests($file)) {
+                continue;
+            }
+
+            if(strpos($file, 'vendor/php-di/php-di/website/') !== false) {
+                continue;
+            }
+
+            $content = file_get_contents($file);
+            $posWeirdSpace = strpos($content, $weirdSpace);
+            if ($posWeirdSpace !== false) {
+                $around = substr($content, $posWeirdSpace - 20, 40);
+                $around = trim($around);
+                $errors[] = "File $file contains an unusual space character, please remove it from here: ...$around...";
+            }
+
+            $countFileChecked++;
+        }
+        $this->assertTrue($countFileChecked > 42, "expected to test at least 100 files, but tested only " . $countFileChecked);
+
+        if (!empty($errors)) {
+            throw new Exception(implode(",\n\n ", $errors));
+        }
+    }
+
+    /**
+     * @param $file
+     * @return bool
+     */
+    private function isFileBelongToTests($file)
+    {
+        return stripos($file, "/tests/") !== false;
+    }
+
+    /**
+     * @return mixed
+     */
+    private function getComposerJsonAsArray()
+    {
+        $composer = file_get_contents(PIWIK_INCLUDE_PATH . '/composer.json');
+        $composerJson = json_decode($composer, $assoc = true);
+        return $composerJson;
+    }
+
 }

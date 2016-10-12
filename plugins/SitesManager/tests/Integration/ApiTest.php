@@ -59,8 +59,8 @@ class ApiTest extends IntegrationTestCase
             array(array()), // no urls
             array(array("")),
             array(""),
-            array("httpww://piwik.net"),
-            array("httpww://piwik.net/gqg~#"),
+            array("5http://piwik.net"),
+            array("???://piwik.net"),
         );
     }
 
@@ -161,8 +161,8 @@ class ApiTest extends IntegrationTestCase
      */
     public function test_addSite_WithSeveralUrls_Succeeds_AndCreatesAliasUrls()
     {
-        $urls = array("http://piwik.net/", "http://piwik.com", "https://piwik.net/test/");
-        $urlsOK = array("http://piwik.net", "http://piwik.com", "https://piwik.net/test");
+        $urls = array("http://piwik.net/", "http://piwik.com", "https://piwik.net/test/", "piwik.net/another/test");
+        $urlsOK = array("http://piwik.net", "http://piwik.com", "http://piwik.net/another/test", "https://piwik.net/test");
         $idsite = API::getInstance()->addSite("super website", $urls);
         $this->assertInternalType(PHPUnit_Framework_Constraint_IsType::TYPE_INT, $idsite);
 
@@ -533,7 +533,7 @@ class ApiTest extends IntegrationTestCase
 
         $sites = API::getInstance()->getSitesWithAdminAccess();
 
-        // we dont test the ts_created
+        // we don't test the ts_created
         unset($sites[0]['ts_created']);
         unset($sites[1]['ts_created']);
         $this->assertEquals($resultWanted, $sites);
@@ -642,7 +642,7 @@ class ApiTest extends IntegrationTestCase
         FakeAccess::setIdSitesAdmin(array());
 
         $sites = API::getInstance()->getSitesWithViewAccess();
-        // we dont test the ts_created
+        // we don't test the ts_created
         unset($sites[0]['ts_created']);
         unset($sites[1]['ts_created']);
         $this->assertEquals($resultWanted, $sites);
@@ -678,7 +678,7 @@ class ApiTest extends IntegrationTestCase
         FakeAccess::setIdSitesAdmin(array());
 
         $sites = API::getInstance()->getSitesWithAtLeastViewAccess();
-        // we dont test the ts_created
+        // we don't test the ts_created
         unset($sites[0]['ts_created']);
         unset($sites[1]['ts_created']);
         $this->assertEquals($resultWanted, $sites);

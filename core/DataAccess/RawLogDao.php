@@ -11,7 +11,6 @@ namespace Piwik\DataAccess;
 use Piwik\Common;
 use Piwik\Container\StaticContainer;
 use Piwik\Db;
-use Piwik\Piwik;
 use Piwik\Plugin\Dimension\DimensionMetadataProvider;
 
 /**
@@ -115,46 +114,15 @@ class RawLogDao
     }
 
     /**
-     * Deletes visits with the supplied IDs from log_visit. This method does not cascade, so rows in other tables w/
-     * the same visit ID will still exist.
-     *
-     * @param int[] $idVisits
-     * @return int The number of deleted rows.
-     */
-    public function deleteVisits($idVisits)
-    {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_visit') . "` WHERE idvisit IN "
-             . $this->getInFieldExpressionWithInts($idVisits);
-
-        $statement = Db::query($sql);
-        return $statement->rowCount();
-    }
-
-    /**
-     * Deletes visit actions for the supplied visit IDs from log_link_visit_action.
-     *
-     * @param int[] $visitIds
-     * @return int The number of deleted rows.
-     */
-    public function deleteVisitActionsForVisits($visitIds)
-    {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_link_visit_action') . "` WHERE idvisit IN "
-             . $this->getInFieldExpressionWithInts($visitIds);
-
-        $statement = Db::query($sql);
-        return $statement->rowCount();
-    }
-
-    /**
      * Deletes conversions for the supplied visit IDs from log_conversion. This method does not cascade, so
      * conversion items will not be deleted.
      *
      * @param int[] $visitIds
      * @return int The number of deleted rows.
      */
-    public function deleteConversions($visitIds)
+    public function deleteFromLogTable($tableName, $visitIds)
     {
-        $sql = "DELETE FROM `" . Common::prefixTable('log_conversion') . "` WHERE idvisit IN "
+        $sql = "DELETE FROM `" . Common::prefixTable($tableName) . "` WHERE idvisit IN "
              . $this->getInFieldExpressionWithInts($visitIds);
 
         $statement = Db::query($sql);
@@ -206,6 +174,26 @@ class RawLogDao
         // unused action will be inserted.
         $this->deleteUnusedActions();
         Db::unlockAllTables();
+    }
+
+
+    /**
+     * Returns the list of the website IDs that received some visits between the specified timestamp.
+     *
+     * @param string $fromDateTime
+     * @param string $toDateTime
+     * @return bool true if there are visits for this site between the given timeframe, false if not
+     */
+    public function hasSiteVisitsBetweenTimeframe($fromDateTime, $toDateTime, $idSite)
+    {
+        $sites = Db::fetchOne("SELECT 1
+                FROM " . Common::prefixTable('log_visit') . "
+                WHERE idsite = ?
+                AND visit_last_action_time > ?
+                AND visit_last_action_time < ?
+                LIMIT 1", array($idSite, $fromDateTime, $toDateTime));
+
+        return (bool) $sites;
     }
 
     /**

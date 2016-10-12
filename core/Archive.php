@@ -11,6 +11,7 @@ namespace Piwik;
 use Piwik\Archive\Parameters;
 use Piwik\ArchiveProcessor\Rules;
 use Piwik\Archive\ArchiveInvalidator;
+use Piwik\Container\StaticContainer;
 use Piwik\DataAccess\ArchiveSelector;
 use Piwik\Period\Factory as PeriodFactory;
 
@@ -167,6 +168,11 @@ class Archive
     private static $cache;
 
     /**
+     * @var ArchiveInvalidator
+     */
+    private $invalidator;
+
+    /**
      * @param Parameters $params
      * @param bool $forceIndexedBySite Whether to force index the result of a query by site ID.
      * @param bool $forceIndexedByDate Whether to force index the result of a query by period.
@@ -177,6 +183,8 @@ class Archive
         $this->params = $params;
         $this->forceIndexedBySite = $forceIndexedBySite;
         $this->forceIndexedByDate = $forceIndexedByDate;
+
+        $this->invalidator = StaticContainer::get('Piwik\Archive\ArchiveInvalidator');
     }
 
     /**
@@ -539,8 +547,7 @@ class Archive
             return; // all requested site ids were already handled
         }
 
-        $invalidator  = new ArchiveInvalidator();
-        $sitesPerDays = $invalidator->getRememberedArchivedReportsThatShouldBeInvalidated();
+        $sitesPerDays = $this->invalidator->getRememberedArchivedReportsThatShouldBeInvalidated();
 
         foreach ($sitesPerDays as $date => $siteIds) {
             if (empty($siteIds)) {
@@ -554,7 +561,7 @@ class Archive
             }
 
             try {
-                $invalidator->markArchivesAsInvalidated($siteIdsToActuallyInvalidate, $date, false);
+                $this->invalidator->markArchivesAsInvalidated($siteIdsToActuallyInvalidate, array(Date::factory($date)), false);
             } catch (\Exception $e) {
                 Site::clearCache();
                 throw $e;
@@ -612,7 +619,7 @@ class Archive
             if ($isNumeric) {
                 $row['value'] = $this->formatNumericValue($row['value']);
             } else {
-                $result->addMetadata($row['idsite'], $periodStr, 'ts_archived', $row['ts_archived']);
+                $result->addMetadata($row['idsite'], $periodStr, DataTable::ARCHIVED_DATE_METADATA_NAME, $row['ts_archived']);
             }
 
             $result->set($row['idsite'], $periodStr, $row['name'], $row['value']);
@@ -639,7 +646,7 @@ class Archive
         $doneFlags     = array();
         $archiveGroups = array();
         foreach ($plugins as $plugin) {
-            $doneFlag = $this->getDoneStringForPlugin($plugin);
+            $doneFlag = $this->getDoneStringForPlugin($plugin, $this->params->getIdSites());
 
             $doneFlags[$doneFlag] = true;
             if (!isset($this->idarchives[$doneFlag])) {
@@ -649,6 +656,11 @@ class Archive
                     $archiveGroup = reset($plugins);
                 }
                 $archiveGroups[] = $archiveGroup;
+            }
+
+            $globalDoneFlag = Rules::getDoneFlagArchiveContainsAllPlugins($this->params->getSegment());
+            if ($globalDoneFlag !== $doneFlag) {
+                $doneFlags[$globalDoneFlag] = true;
             }
         }
 
@@ -724,8 +736,10 @@ class Archive
 
         // initialize archive ID cache for each report
         foreach ($plugins as $plugin) {
-            $doneFlag = $this->getDoneStringForPlugin($plugin);
+            $doneFlag = $this->getDoneStringForPlugin($plugin, $this->params->getIdSites());
             $this->initializeArchiveIdCache($doneFlag);
+            $globalDoneFlag = Rules::getDoneFlagArchiveContainsAllPlugins($this->params->getSegment());
+            $this->initializeArchiveIdCache($globalDoneFlag);
         }
 
         foreach ($idarchivesByReport as $doneFlag => $idarchivesByDate) {
@@ -742,10 +756,10 @@ class Archive
      * @param string $plugin
      * @return string
      */
-    private function getDoneStringForPlugin($plugin)
+    private function getDoneStringForPlugin($plugin, $idSites)
     {
         return Rules::getDoneStringFlagFor(
-                    $this->params->getIdSites(),
+                    $idSites,
                     $this->params->getSegment(),
                     $this->getPeriodLabel(),
                     $plugin
@@ -886,9 +900,11 @@ class Archive
 
         $periodString = $period->getRangeString();
 
+        $idSites = array($site->getId());
+        
         // process for each plugin as well
         foreach ($archiveGroups as $plugin) {
-            $doneFlag = $this->getDoneStringForPlugin($plugin);
+            $doneFlag = $this->getDoneStringForPlugin($plugin, $idSites);
             $this->initializeArchiveIdCache($doneFlag);
 
             $idArchive = $archiveLoader->prepareArchive($plugin);

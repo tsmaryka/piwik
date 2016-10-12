@@ -19,6 +19,7 @@
         $scope.idSite = piwik.broadcast.getValueFromUrl('idSite');
         $scope.url  = piwik.piwik_url;
         $scope.period = piwik.period;
+        $scope.areAdsForProfessionalServicesEnabled = piwik.config && piwik.config.are_ads_enabled;
 
         this.refresh = function (interval) {
             multisitesDashboardModel.refreshInterval = interval;

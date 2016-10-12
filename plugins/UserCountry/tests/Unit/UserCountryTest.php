@@ -109,6 +109,9 @@ class UserCountryTest extends \PHPUnit_Framework_TestCase
      */
     public function testGeoIpDownloadInvalidUrl($url)
     {
+        // unset translations, otherwise Exception message will be translated
+        StaticContainer::get('Piwik\Translation\Translator')->reset();
+
         $updater = new Piwik_UserCountry_GeoIPAutoUpdater_publictest();
         try {
             $updater->downloadFile('loc', $url);
@@ -138,7 +141,7 @@ class UserCountryTest extends \PHPUnit_Framework_TestCase
         foreach ($filesToRemove as $name) {
             $path = $geoIpDirPath . '/' . $name;
             if (file_exists($path)) {
-                unlink($path);
+                @unlink($path);
             }
         }
     }

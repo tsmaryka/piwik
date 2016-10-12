@@ -7,28 +7,11 @@
 
 function _pk_translate(translationStringId, values) {
 
-    function sprintf (translation, values) {
-        var index = 0;
-        return (translation+'').replace(/(%(.\$)?s+)/g, function(match, number) {
-
-            var replaced = match;
-            if (match != '%s') {
-                index = parseInt(match.substr(1, 1)) - 1;
-            }
-
-            if (typeof values[index] != 'undefined') {
-                replaced = values[index];
-            }
-
-            index++;
-            return replaced;
-        });
-    }
-
     if( typeof(piwik_translations[translationStringId]) != 'undefined' ){
         var translation = piwik_translations[translationStringId];
         if (typeof values != 'undefined' && values && values.length) {
-            return sprintf(translation, values);
+            values.unshift(translation);
+            return sprintf.apply(null, values);
         }
 
         return translation;
@@ -125,10 +108,26 @@ var piwikHelper = {
     compileAngularComponents: function (selector) {
         var $element = $(selector);
 
+        if (!$element.length) {
+            return;
+        }
+
         angular.element(document).injector().invoke(function($compile) {
             var scope = angular.element($element).scope();
             $compile($element)(scope);
         });
+    },
+
+    /**
+     * Detection works currently only for directives defining an isolated scope. Functionality might need to be
+     * extended if needed. Under circumstances you might call this method before calling compileAngularComponents()
+     * to avoid compiling the same element twice.
+     * @param selector
+     */
+    isAlreadyCompiledAngularComponent: function (selector) {
+        var $element = $(selector);
+
+        return ($element.length && $element.hasClass('ng-isolate-scope'));
     },
 
     /**

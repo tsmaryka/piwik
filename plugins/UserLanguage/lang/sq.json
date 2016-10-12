@@ -1,5 +1,7 @@
 {
     "UserLanguage": {
-        "LanguageCode": "Kod Gjuhe"
+        "BrowserLanguage": "Gjuhë shfletuesi",
+        "LanguageCode": "Kod Gjuhe",
+        "PluginDescription": "Raporton gjuhën e përdorur nga shfletuesit e vizitorëve tuaj."
     }
 }

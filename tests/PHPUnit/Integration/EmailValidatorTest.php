@@ -8,6 +8,7 @@
 
 namespace Piwik\Tests\Integration;
 
+use Piwik\Http;
 use Piwik\Piwik;
 
 /**
@@ -18,6 +19,86 @@ class EmailValidatorTest extends \PHPUnit_Framework_TestCase
     protected function isValid($email)
     {
         return Piwik::isValidEmailString($email);
+    }
+
+    private function getAllTlds()
+    {
+        /** @var array $response */
+        $response = \Piwik\Http::sendHttpRequest("http://data.iana.org/TLD/tlds-alpha-by-domain.txt", 30, null, null, null, null, null, true);
+
+        $this->assertEquals("200", $response['status']);
+
+        $tlds = explode("\n", $response['data']);
+        foreach ($tlds as $key => $tld) {
+            if (strpos($tld, '#') !== false || $tld == "") {
+                unset($tlds[$key]);
+            }
+        }
+        $minimumTlds = 1200;
+        $this->assertGreaterThan( $minimumTlds, count($tlds), "expected to download at least $minimumTlds domain names");
+        return $tlds;
+    }
+
+    private function skipTestIfIdnNotAvailable()
+    {
+        if (!function_exists('idn_to_utf8')) {
+            $this->markTestSkipped("Couldn't get TLD list");
+        }
+    }
+
+    public function test_allCurrentTlds()
+    {
+        $this->skipTestIfIdnNotAvailable();
+
+        $tlds = $this->getAllTlds();
+        if (count($tlds) === 0) {
+            $this->markTestSkipped("Couldn't get TLD list");
+        }
+
+        $errors = array();
+        foreach ($tlds as $key => $tld) {
+            if (strpos(mb_strtolower($tld), 'xn--') !== 0) {
+                $tld = mb_strtolower($tld);
+            }
+            $domainNameExtension = idn_to_utf8($tld);
+            $email = 'test@example.' . $domainNameExtension;
+
+            if(!$this->isValid($email)) {
+                $errors[] = "email $email is not valid, but expected to be valid. Add this domain extension to  libs/Zend/Validate/Hostname.php";
+            }
+        }
+
+        // only fail when at least 5 domains are failing the test, so it does not fail every time IANA adds a new domain extension...
+        if(count($errors) > 5) {
+            $this->fail( implode(", ", $errors));
+        }
+    }
+
+    public function test_invalidTld()
+    {
+        $this->skipTestIfIdnNotAvailable();
+
+        $tlds = [
+            strval(bin2hex(openssl_random_pseudo_bytes(64))), //generates 128 bit length string
+            '-tld-cannot-start-from-hypen',
+            'ąęśćżźł-there-is-no-such-idn',
+            'xn--fd67as67fdsa', //no such idn punycode
+            '!@#-inavlid-chars-in-tld',
+            'no spaces in tld allowed',
+            'no--double--hypens--allowed'
+        ];
+        if (count($tlds) === 0) {
+            $this->markTestSkipped("Couldn't get TLD list");
+        }
+
+        foreach ($tlds as $key => $tld) {
+            if (strpos(mb_strtolower($tld), 'xn--') !== 0) {
+                $tld = mb_strtolower($tld);
+            }
+            $this->assertFalse(
+                $this->isValid('test@example.' . idn_to_utf8($tld))
+            );
+        }
     }
 
     public function test_isValid_validStandard()

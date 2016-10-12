@@ -52,8 +52,37 @@ class DbTest extends IntegrationTestCase
         $this->assertInstanceOf($expectedClass, $db);
         $result = $db->fetchOne('SELECT @@SESSION.sql_mode');
 
-        $expected = 'NO_AUTO_VALUE_ON_ZERO,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+        $expected = 'NO_AUTO_VALUE_ON_ZERO';
         $this->assertSame($expected, $result);
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessagelock name has to be 64 characters or less
+     */
+    public function test_getDbLock_shouldThrowAnException_IfDbLockNameIsTooLong()
+    {
+        Db::getDbLock(str_pad('test', 65, '1'));
+    }
+
+    public function test_getDbLock_shouldGetLock()
+    {
+        $db = Db::get();
+        $this->assertTrue(Db::getDbLock('MyLock'));
+        // same session still has lock
+        $this->assertTrue(Db::getDbLock('MyLock'));
+
+        Db::setDatabaseObject(null);
+        // different session, should not be able to acquire lock
+        $this->assertFalse(Db::getDbLock('MyLock', 1));
+        // different session cannot release lock
+        $this->assertFalse(Db::releaseDbLock('MyLock'));
+        Db::destroyDatabaseObject();
+
+        // release lock again by using previous session
+        Db::setDatabaseObject($db);
+        $this->assertTrue(Db::releaseDbLock('MyLock'));
+        Db::destroyDatabaseObject();
     }
 
     public function getDbAdapter()

@@ -8,7 +8,6 @@
  */
 namespace Piwik\Plugins\Goals;
 
-use Exception;
 use Piwik\API\Request;
 use Piwik\Common;
 use Piwik\DataTable;
@@ -374,7 +373,7 @@ class Controller extends \Piwik\Plugin\Controller
         $dataRow = $datatable->getFirstRow();
         $nbConversions = $dataRow->getColumn('nb_conversions');
         $nbVisitsConverted = $dataRow->getColumn('nb_visits_converted');
-        // Backward compatibilty before 1.3, this value was not processed
+        // Backward compatibility before 1.3, this value was not processed
         if (empty($nbVisitsConverted)) {
             $nbVisitsConverted = $nbConversions;
         }
@@ -459,8 +458,14 @@ class Controller extends \Piwik\Plugin\Controller
                     }
                     $customParams['viewDataTable'] = $report['viewDataTable'];
 
+                    if (!empty($report['parameters'])) {
+                        $params = array_merge($customParams, $report['parameters']);
+                    } else {
+                        $params = $customParams;
+                    }
+
                     $goalReportsByDimension->addReport(
-                        $categoryText, $report['name'], $report['module'] . '.' . $report['action'], $customParams);
+                        $categoryText, $report['name'], $report['module'] . '.' . $report['action'], $params);
                 }
             }
         }

@@ -142,8 +142,7 @@ function bindUpdateSuperUserAccess() {
         message = 'UsersManager_ConfirmProhibitOtherUsersSuperUserAccess';
     }
 
-    message = _pk_translate(message);
-    message = message.replace('%s', login);
+    message = _pk_translate(message, [login]);
 
     $('#superUserAccessConfirm h2').text(message);
 
@@ -272,7 +271,7 @@ $(document).ready(function () {
         newRowId = 'row' + newRowId;
 
         $($.parseHTML(' <tr id="' + newRowId + '">\
-				<td><input id="useradd_login" placeholder="login" size="10" /></td>\
+				<td><input id="useradd_login" placeholder="username" size="10" /></td>\
 				<td><input id="useradd_password" placeholder="password" size="10" /></td>\
 				<td><input id="useradd_email" placeholder="email@domain.com" size="15" /></td>\
 				<td><input id="useradd_alias" placeholder="alias" size="15" /></td>\
@@ -292,8 +291,7 @@ $(document).ready(function () {
         });
     });
 
-    $('#access .updateAccess')
-        .click(bindUpdateAccess);
+    $('#access .updateAccess').click(bindUpdateAccess);
 
     $('#superUserAccess .accessGranted, #superUserAccess .updateAccess').click(bindUpdateSuperUserAccess);
 

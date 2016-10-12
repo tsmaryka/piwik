@@ -17,6 +17,7 @@ use Piwik\Date;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Network\IPUtils;
 use Piwik\Piwik;
+use Piwik\Plugin;
 use Piwik\Plugin\Dimension\VisitDimension;
 use Piwik\Tracker;
 use Piwik\Tracker\Visit\VisitProperties;
@@ -69,12 +70,19 @@ class Visit implements VisitInterface
      */
     private $visitorRecognizer;
 
+    /**
+     * @var ArchiveInvalidator
+     */
+    private $invalidator;
+
     public function __construct()
     {
-        $this->requestProcessors = StaticContainer::get('tracker.request.processors');
+        $requestProcessors = StaticContainer::get('Piwik\Plugin\RequestProcessors');
+        $this->requestProcessors = $requestProcessors->getRequestProcessors();
         $this->visitorRecognizer = StaticContainer::get('Piwik\Tracker\VisitorRecognizer');
         $this->visitProperties = null;
         $this->userSettings = StaticContainer::get('Piwik\Tracker\Settings');
+        $this->invalidator = StaticContainer::get('Piwik\Archive\ArchiveInvalidator');
     }
 
     /**
@@ -107,6 +115,12 @@ class Visit implements VisitInterface
      */
     public function handle()
     {
+        foreach ($this->requestProcessors as $processor) {
+            Common::printDebug("Executing " . get_class($processor) . "::manipulateRequest()...");
+
+            $processor->manipulateRequest($this->request);
+        }
+
         $this->visitProperties = new VisitProperties();
 
         foreach ($this->requestProcessors as $processor) {
@@ -264,6 +278,8 @@ class Visit implements VisitInterface
             $this->triggerHookOnDimensions($dimensions, 'onConvertedVisit');
         }
 
+        $properties = &$this->visitProperties->getProperties();
+
         /**
          * Triggered before a new [visit entity](/guides/persistence-and-the-mysql-backend#visits) is persisted.
          *
@@ -278,7 +294,7 @@ class Visit implements VisitInterface
          *
          * @deprecated
          */
-        Piwik::postEvent('Tracker.newVisitorInformation', array($this->visitProperties->getProperties(), $this->request));
+        Piwik::postEvent('Tracker.newVisitorInformation', array(&$properties, $this->request));
 
         foreach ($this->requestProcessors as $processor) {
             $processor->onNewVisit($this->visitProperties, $this->request);
@@ -349,7 +365,7 @@ class Visit implements VisitInterface
         return $this->userSettings;
     }
 
-    // is the referrer host any of the registered URLs for this website?
+    // is the host any of the registered URLs for this website?
     public static function isHostKnownAliasHost($urlHost, $idSite)
     {
         $websiteData = Cache::getCacheWebsiteAttributes($idSite);
@@ -381,6 +397,11 @@ class Visit implements VisitInterface
      */
     protected function updateExistingVisit($valuesToUpdate)
     {
+        if (empty($valuesToUpdate)) {
+            Common::printDebug('There are no values to be updated for this visit');
+            return;
+        }
+
         $idSite = $this->request->getIdSite();
         $idVisit = (int)$this->visitProperties->getProperty('idvisit');
 
@@ -564,8 +585,7 @@ class Visit implements VisitInterface
         $date = Date::factory((int)$time, $timezone);
 
         if (!$date->isToday()) { // we don't have to handle in case date is in future as it is not allowed by tracker
-            $invalidReport = new ArchiveInvalidator();
-            $invalidReport->rememberToInvalidateArchivedReportsLater($idSite, $date);
+            $this->invalidator->rememberToInvalidateArchivedReportsLater($idSite, $date);
         }
     }
 

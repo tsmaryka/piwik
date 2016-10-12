@@ -9,8 +9,10 @@
 namespace Piwik\Plugins\Dashboard;
 
 use Piwik\Common;
+use Piwik\Container\StaticContainer;
 use Piwik\Db;
 use Piwik\Piwik;
+use Piwik\Plugin;
 use Piwik\WidgetsList;
 
 /**
@@ -18,9 +20,9 @@ use Piwik\WidgetsList;
 class Dashboard extends \Piwik\Plugin
 {
     /**
-     * @see Piwik\Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
@@ -232,6 +234,8 @@ class Dashboard extends \Piwik\Plugin
         $translationKeys[] = 'Dashboard_LoadingWidget';
         $translationKeys[] = 'Dashboard_WidgetNotFound';
         $translationKeys[] = 'Dashboard_DashboardCopied';
+        $translationKeys[] = 'Dashboard_Dashboard';
+        $translationKeys[] = 'Dashboard_RemoveDefaultDashboardNotPossible';
         $translationKeys[] = 'General_Close';
         $translationKeys[] = 'General_Refresh';
     }

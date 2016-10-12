@@ -14,6 +14,7 @@ use Piwik\Plugins\VisitsSummary\API as VisitsSummaryAPI;
 
 /**
  * TODO: This could be a unit test if we could inject the ArchiveTableDao in the command
+ * @group AnalyzeArchiveTableTest
  */
 class AnalyzeArchiveTableTest extends ConsoleCommandTestCase
 {

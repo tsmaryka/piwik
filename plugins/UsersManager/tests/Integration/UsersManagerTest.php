@@ -159,7 +159,6 @@ class UsersManagerTest extends IntegrationTestCase
     {
         return array(
             array("geggeqgeqag", "pas", "email@email.com", "alias"), // too short -> exception
-            array("ghqgeggg", "gegageqqqqqqqgeqgqeg84897897897897g122gerrgageqqqqqqqgeqgqeg84897897897897g12234k3", "email@email.com", "alias"), // too long -> exception
             array("geggeqgeqag", "", "email@email.com", "alias"), // empty -> exception
         );
     }
@@ -190,6 +189,19 @@ class UsersManagerTest extends IntegrationTestCase
     {
         $login = "geggeqgeqag";
         $this->api->addUser($login, "geqgeagae", "mgeagi@geq.com", "");
+        $user = $this->api->getUser($login);
+        $this->assertEquals($login, $user['alias']);
+        $this->assertEquals($login, $user['login']);
+    }
+
+    /**
+     * long password => should work
+     * empty alias => use login
+     */
+    public function testAddUserLongPassword()
+    {
+        $login = "geggeqgeqag";
+        $this->api->addUser($login, "geqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaegeqgeagaeg", "mgeagi@geq.com", "");
         $user = $this->api->getUser($login);
         $this->assertEquals($login, $user['alias']);
         $this->assertEquals($login, $user['login']);
@@ -345,7 +357,7 @@ class UsersManagerTest extends IntegrationTestCase
         $this->assertInternalType('string', $user['date_registered']);
         $this->assertEquals($email, $user['email']);
 
-        //alias shouldnt be empty even if no alias specified
+        //alias shouldn't be empty even if no alias specified
         $this->assertGreaterThan(0, strlen($user['alias']));
     }
 
@@ -378,6 +390,21 @@ class UsersManagerTest extends IntegrationTestCase
         $this->assertEquals(array($user1, $user2), $this->_removeNonTestableFieldsFromUsers($this->api->getUsers('gegg4564eqgeqag,geggeqge632ge56a4qag')));
     }
 
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage checkUserHasSomeAdminAccess Fake exception
+     */
+    public function testGetUsers_withViewAccess_shouldThrowAnException()
+    {
+        $this->api->addUser("gegg4564eqgeqag", "geqgegagae", "tegst@tesgt.com", "alias");
+        $this->api->addUser("geggeqge632ge56a4qag", "geqgegeagae", "tesggt@tesgt.com", "alias");
+        $this->api->addUser("geggeqgeqagqegg", "geqgeaggggae", "tesgggt@tesgt.com");
+
+        FakeAccess::clearAccess($superUser = false, $admin = array(), $view = array(1), 'gegg4564eqgeqag');
+
+        $this->api->getUsers();
+    }
+
     protected function _removeNonTestableFieldsFromUsers($users)
     {
         foreach ($users as &$user) {
@@ -399,6 +426,37 @@ class UsersManagerTest extends IntegrationTestCase
         $logins = $this->api->getUsersLogin();
 
         $this->assertEquals(array("gegg4564eqgeqag", "geggeqge632ge56a4qag", "geggeqgeqagqegg"), $logins);
+    }
+
+    public function testGetUserLoginFromUserEmail()
+    {
+        $this->api->addUser('gegg4564eqgeqag', 'geqgegagae', 'tegst@tesgt.com', 'alias');
+        $this->api->addUser("geggeqge632ge56a4qag", "geqgegeagae", "tesggt@tesgt.com", "alias");
+        $this->api->addUser("geggeqgeqagqegg", "geqgeaggggae", "tesgggt@tesgt.com");
+
+        $this->assertSame('gegg4564eqgeqag', $this->api->getUserLoginFromUserEmail('tegst@tesgt.com'));
+        $this->assertSame('geggeqge632ge56a4qag', $this->api->getUserLoginFromUserEmail('tesggt@tesgt.com'));
+        // test camel case should still find user
+        $this->assertSame('geggeqge632ge56a4qag', $this->api->getUserLoginFromUserEmail('teSGgT@tesgt.com'));
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage UsersManager_ExceptionUserDoesNotExist
+     */
+    public function testGetUserLoginFromUserEmail_shouldThrowException_IfUserDoesNotExist()
+    {
+        $this->api->getUserLoginFromUserEmail('unknownUser@teSsgt.com');
+    }
+
+    /**
+     * @expectedException \Exception
+     * @expectedExceptionMessage checkUserHasSomeAdminAccess Fake exception
+     */
+    public function testGetUserLoginFromUserEmail_shouldThrowException_IfUserDoesNotHaveAtLeastAdminPermission()
+    {
+        FakeAccess::clearAccess($superUser = false, $admin =array(), $view = array(1));
+        $this->api->getUserLoginFromUserEmail('tegst@tesgt.com');
     }
 
     /**

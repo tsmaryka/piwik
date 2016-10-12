@@ -26,376 +26,938 @@
  * - Opera 7
  */
 
-/************************************************************
- * JSON - public domain reference implementation by Douglas Crockford
- * @version 2012-10-08
- * @link http://www.JSON.org/js.html
- ************************************************************/
-/*jslint evil: true, regexp: false, bitwise: true, white: true */
 /*global JSON2:true */
-/*global window:true */
-/*property JSON:true */
-/*members "", "\b", "\t", "\n", "\f", "\r", "\"", "\\", apply,
-    call, charCodeAt, getUTCDate, getUTCFullYear, getUTCHours,
-    getUTCMinutes, getUTCMonth, getUTCSeconds, hasOwnProperty, join,
-    lastIndex, length, parse, prototype, push, replace, sort, slice, stringify,
-    test, toJSON, toString, valueOf,
-    objectToJSON
-*/
 
-// Create a JSON object only if one does not already exist. We create the
-// methods in a closure to avoid creating global variables.
+if (typeof JSON2 !== 'object' && typeof window.JSON === 'object' && window.JSON.stringify && window.JSON.parse) {
+    JSON2 = window.JSON;
+} else {
+    (function () {
+        // we make sure to not break any site that uses JSON3 as well as we do not know if they run it in conflict mode
+        // or not.
+        var exports = {};
 
-if (typeof JSON2 !== 'object') {
-    JSON2 = window.JSON || {};
-}
+        // Create a JSON object only if one does not already exist. We create the
+        // methods in a closure to avoid creating global variables.
 
-(function () {
-    'use strict';
+        /*! JSON v3.3.2 | http://bestiejs.github.io/json3 | Copyright 2012-2014, Kit Cambridge | http://kit.mit-license.org */
+        (function () {
+            // Detect the `define` function exposed by asynchronous module loaders. The
+            // strict `define` check is necessary for compatibility with `r.js`.
+            var isLoader = typeof define === "function" && define.amd;
 
-    function f(n) {
-        // Format integers to have at least two digits.
-        return n < 10 ? '0' + n : n;
-    }
+            // A set of types used to distinguish objects from primitives.
+            var objectTypes = {
+                "function": true,
+                "object": true
+            };
 
-    function objectToJSON(value, key) {
-        var objectType = Object.prototype.toString.apply(value);
+            // Detect the `exports` object exposed by CommonJS implementations.
+            var freeExports = objectTypes[typeof exports] && exports && !exports.nodeType && exports;
 
-        if (objectType === '[object Date]') {
-            return isFinite(value.valueOf())
-                ?  value.getUTCFullYear()     + '-' +
-                    f(value.getUTCMonth() + 1) + '-' +
-                    f(value.getUTCDate())      + 'T' +
-                    f(value.getUTCHours())     + ':' +
-                    f(value.getUTCMinutes())   + ':' +
-                    f(value.getUTCSeconds())   + 'Z'
-                : null;
-        }
+            // Use the `global` object exposed by Node (including Browserify via
+            // `insert-module-globals`), Narwhal, and Ringo as the default context,
+            // and the `window` object in browsers. Rhino exports a `global` function
+            // instead.
+            var root = objectTypes[typeof window] && window || this,
+                freeGlobal = freeExports && objectTypes[typeof module] && module && !module.nodeType && typeof global == "object" && global;
 
-        if (objectType === '[object String]' ||
-                objectType === '[object Number]' ||
-                objectType === '[object Boolean]') {
-            return value.valueOf();
-        }
-
-        if (objectType !== '[object Array]' &&
-                typeof value.toJSON === 'function') {
-            return value.toJSON(key);
-        }
-
-        return value;
-    }
-
-    var cx = new RegExp('[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]', 'g'),
-    // hack: workaround Snort false positive (sid 8443)
-        pattern = '\\\\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]',
-        escapable = new RegExp('[' + pattern, 'g'),
-        gap,
-        indent,
-        meta = {    // table of character substitutions
-            '\b': '\\b',
-            '\t': '\\t',
-            '\n': '\\n',
-            '\f': '\\f',
-            '\r': '\\r',
-            '"' : '\\"',
-            '\\': '\\\\'
-        },
-        rep;
-
-    function quote(string) {
-
-// If the string contains no control characters, no quote characters, and no
-// backslash characters, then we can safely slap some quotes around it.
-// Otherwise we must also replace the offending characters with safe escape
-// sequences.
-
-        escapable.lastIndex = 0;
-
-        return escapable.test(string) ? '"' + string.replace(escapable, function (a) {
-            var c = meta[a];
-
-            return typeof c === 'string'
-                ? c
-                : '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
-        }) + '"' : '"' + string + '"';
-    }
-
-    function str(key, holder) {
-
-// Produce a string from holder[key].
-
-        var i,          // The loop counter.
-            k,          // The member key.
-            v,          // The member value.
-            length,
-            mind = gap,
-            partial,
-            value = holder[key];
-
-// If the value has a toJSON method, call it to obtain a replacement value.
-
-        if (value && typeof value === 'object') {
-            value = objectToJSON(value, key);
-        }
-
-// If we were called with a replacer function, then call the replacer to
-// obtain a replacement value.
-
-        if (typeof rep === 'function') {
-            value = rep.call(holder, key, value);
-        }
-
-// What happens next depends on the value's type.
-
-        switch (typeof value) {
-        case 'string':
-            return quote(value);
-
-        case 'number':
-
-// JSON numbers must be finite. Encode non-finite numbers as null.
-
-            return isFinite(value) ? String(value) : 'null';
-
-        case 'boolean':
-        case 'null':
-
-// If the value is a boolean or null, convert it to a string. Note:
-// typeof null does not produce 'null'. The case is included here in
-// the remote chance that this gets fixed someday.
-
-            return String(value);
-
-// If the type is 'object', we might be dealing with an object or an array or
-// null.
-
-        case 'object':
-
-// Due to a specification blunder in ECMAScript, typeof null is 'object',
-// so watch out for that case.
-
-            if (!value) {
-                return 'null';
+            if (freeGlobal && (freeGlobal["global"] === freeGlobal || freeGlobal["window"] === freeGlobal || freeGlobal["self"] === freeGlobal)) {
+                root = freeGlobal;
             }
 
-// Make an array to hold the partial results of stringifying this object value.
+            // Public: Initializes JSON 3 using the given `context` object, attaching the
+            // `stringify` and `parse` functions to the specified `exports` object.
+            function runInContext(context, exports) {
+                context || (context = root["Object"]());
+                exports || (exports = root["Object"]());
 
-            gap += indent;
-            partial = [];
+                // Native constructor aliases.
+                var Number = context["Number"] || root["Number"],
+                    String = context["String"] || root["String"],
+                    Object = context["Object"] || root["Object"],
+                    Date = context["Date"] || root["Date"],
+                    SyntaxError = context["SyntaxError"] || root["SyntaxError"],
+                    TypeError = context["TypeError"] || root["TypeError"],
+                    Math = context["Math"] || root["Math"],
+                    nativeJSON = context["JSON"] || root["JSON"];
 
-// Is the value an array?
-
-            if (Object.prototype.toString.apply(value) === '[object Array]') {
-
-// The value is an array. Stringify every element. Use null as a placeholder
-// for non-JSON values.
-
-                length = value.length;
-                for (i = 0; i < length; i += 1) {
-                    partial[i] = str(i, value) || 'null';
+                // Delegate to the native `stringify` and `parse` implementations.
+                if (typeof nativeJSON == "object" && nativeJSON) {
+                    exports.stringify = nativeJSON.stringify;
+                    exports.parse = nativeJSON.parse;
                 }
 
-// Join all of the elements together, separated with commas, and wrap them in
-// brackets.
+                // Convenience aliases.
+                var objectProto = Object.prototype,
+                    getClass = objectProto.toString,
+                    isProperty, forEach, undef;
 
-                v = partial.length === 0
-                    ? '[]'
-                    : gap
-                    ?  '[\n' + gap + partial.join(',\n' + gap) + '\n' + mind + ']'
-                    : '[' + partial.join(',') + ']';
-                gap = mind;
+                // Test the `Date#getUTC*` methods. Based on work by @Yaffle.
+                var isExtended = new Date(-3509827334573292);
+                try {
+                    // The `getUTCFullYear`, `Month`, and `Date` methods return nonsensical
+                    // results for certain dates in Opera >= 10.53.
+                    isExtended = isExtended.getUTCFullYear() == -109252 && isExtended.getUTCMonth() === 0 && isExtended.getUTCDate() === 1 &&
+                            // Safari < 2.0.2 stores the internal millisecond time value correctly,
+                            // but clips the values returned by the date methods to the range of
+                            // signed 32-bit integers ([-2 ** 31, 2 ** 31 - 1]).
+                        isExtended.getUTCHours() == 10 && isExtended.getUTCMinutes() == 37 && isExtended.getUTCSeconds() == 6 && isExtended.getUTCMilliseconds() == 708;
+                } catch (exception) {}
 
-                return v;
-            }
-
-// If the replacer is an array, use it to select the members to be stringified.
-
-            if (rep && typeof rep === 'object') {
-                length = rep.length;
-                for (i = 0; i < length; i += 1) {
-                    if (typeof rep[i] === 'string') {
-                        k = rep[i];
-                        v = str(k, value);
-
-                        if (v) {
-                            partial.push(quote(k) + (gap ? ': ' : ':') + v);
+                // Internal: Determines whether the native `JSON.stringify` and `parse`
+                // implementations are spec-compliant. Based on work by Ken Snyder.
+                function has(name) {
+                    if (has[name] !== undef) {
+                        // Return cached feature test result.
+                        return has[name];
+                    }
+                    var isSupported;
+                    if (name == "bug-string-char-index") {
+                        // IE <= 7 doesn't support accessing string characters using square
+                        // bracket notation. IE 8 only supports this for primitives.
+                        isSupported = "a"[0] != "a";
+                    } else if (name == "json") {
+                        // Indicates whether both `JSON.stringify` and `JSON.parse` are
+                        // supported.
+                        isSupported = has("json-stringify") && has("json-parse");
+                    } else {
+                        var value, serialized = '{"a":[1,true,false,null,"\\u0000\\b\\n\\f\\r\\t"]}';
+                        // Test `JSON.stringify`.
+                        if (name == "json-stringify") {
+                            var stringify = exports.stringify, stringifySupported = typeof stringify == "function" && isExtended;
+                            if (stringifySupported) {
+                                // A test function object with a custom `toJSON` method.
+                                (value = function () {
+                                    return 1;
+                                }).toJSON = value;
+                                try {
+                                    stringifySupported =
+                                        // Firefox 3.1b1 and b2 serialize string, number, and boolean
+                                        // primitives as object literals.
+                                        stringify(0) === "0" &&
+                                            // FF 3.1b1, b2, and JSON 2 serialize wrapped primitives as object
+                                            // literals.
+                                        stringify(new Number()) === "0" &&
+                                        stringify(new String()) == '""' &&
+                                            // FF 3.1b1, 2 throw an error if the value is `null`, `undefined`, or
+                                            // does not define a canonical JSON representation (this applies to
+                                            // objects with `toJSON` properties as well, *unless* they are nested
+                                            // within an object or array).
+                                        stringify(getClass) === undef &&
+                                            // IE 8 serializes `undefined` as `"undefined"`. Safari <= 5.1.7 and
+                                            // FF 3.1b3 pass this test.
+                                        stringify(undef) === undef &&
+                                            // Safari <= 5.1.7 and FF 3.1b3 throw `Error`s and `TypeError`s,
+                                            // respectively, if the value is omitted entirely.
+                                        stringify() === undef &&
+                                            // FF 3.1b1, 2 throw an error if the given value is not a number,
+                                            // string, array, object, Boolean, or `null` literal. This applies to
+                                            // objects with custom `toJSON` methods as well, unless they are nested
+                                            // inside object or array literals. YUI 3.0.0b1 ignores custom `toJSON`
+                                            // methods entirely.
+                                        stringify(value) === "1" &&
+                                        stringify([value]) == "[1]" &&
+                                            // Prototype <= 1.6.1 serializes `[undefined]` as `"[]"` instead of
+                                            // `"[null]"`.
+                                        stringify([undef]) == "[null]" &&
+                                            // YUI 3.0.0b1 fails to serialize `null` literals.
+                                        stringify(null) == "null" &&
+                                            // FF 3.1b1, 2 halts serialization if an array contains a function:
+                                            // `[1, true, getClass, 1]` serializes as "[1,true,],". FF 3.1b3
+                                            // elides non-JSON values from objects and arrays, unless they
+                                            // define custom `toJSON` methods.
+                                        stringify([undef, getClass, null]) == "[null,null,null]" &&
+                                            // Simple serialization test. FF 3.1b1 uses Unicode escape sequences
+                                            // where character escape codes are expected (e.g., `\b` => `\u0008`).
+                                        stringify({ "a": [value, true, false, null, "\x00\b\n\f\r\t"] }) == serialized &&
+                                            // FF 3.1b1 and b2 ignore the `filter` and `width` arguments.
+                                        stringify(null, value) === "1" &&
+                                        stringify([1, 2], null, 1) == "[\n 1,\n 2\n]" &&
+                                            // JSON 2, Prototype <= 1.7, and older WebKit builds incorrectly
+                                            // serialize extended years.
+                                        stringify(new Date(-8.64e15)) == '"-271821-04-20T00:00:00.000Z"' &&
+                                            // The milliseconds are optional in ES 5, but required in 5.1.
+                                        stringify(new Date(8.64e15)) == '"+275760-09-13T00:00:00.000Z"' &&
+                                            // Firefox <= 11.0 incorrectly serializes years prior to 0 as negative
+                                            // four-digit years instead of six-digit years. Credits: @Yaffle.
+                                        stringify(new Date(-621987552e5)) == '"-000001-01-01T00:00:00.000Z"' &&
+                                            // Safari <= 5.1.5 and Opera >= 10.53 incorrectly serialize millisecond
+                                            // values less than 1000. Credits: @Yaffle.
+                                        stringify(new Date(-1)) == '"1969-12-31T23:59:59.999Z"';
+                                } catch (exception) {
+                                    stringifySupported = false;
+                                }
+                            }
+                            isSupported = stringifySupported;
+                        }
+                        // Test `JSON.parse`.
+                        if (name == "json-parse") {
+                            var parse = exports.parse;
+                            if (typeof parse == "function") {
+                                try {
+                                    // FF 3.1b1, b2 will throw an exception if a bare literal is provided.
+                                    // Conforming implementations should also coerce the initial argument to
+                                    // a string prior to parsing.
+                                    if (parse("0") === 0 && !parse(false)) {
+                                        // Simple parsing test.
+                                        value = parse(serialized);
+                                        var parseSupported = value["a"].length == 5 && value["a"][0] === 1;
+                                        if (parseSupported) {
+                                            try {
+                                                // Safari <= 5.1.2 and FF 3.1b1 allow unescaped tabs in strings.
+                                                parseSupported = !parse('"\t"');
+                                            } catch (exception) {}
+                                            if (parseSupported) {
+                                                try {
+                                                    // FF 4.0 and 4.0.1 allow leading `+` signs and leading
+                                                    // decimal points. FF 4.0, 4.0.1, and IE 9-10 also allow
+                                                    // certain octal literals.
+                                                    parseSupported = parse("01") !== 1;
+                                                } catch (exception) {}
+                                            }
+                                            if (parseSupported) {
+                                                try {
+                                                    // FF 4.0, 4.0.1, and Rhino 1.7R3-R4 allow trailing decimal
+                                                    // points. These environments, along with FF 3.1b1 and 2,
+                                                    // also allow trailing commas in JSON objects and arrays.
+                                                    parseSupported = parse("1.") !== 1;
+                                                } catch (exception) {}
+                                            }
+                                        }
+                                    }
+                                } catch (exception) {
+                                    parseSupported = false;
+                                }
+                            }
+                            isSupported = parseSupported;
                         }
                     }
+                    return has[name] = !!isSupported;
                 }
-            } else {
 
-// Otherwise, iterate through all of the keys in the object.
+                if (!has("json")) {
+                    // Common `[[Class]]` name aliases.
+                    var functionClass = "[object Function]",
+                        dateClass = "[object Date]",
+                        numberClass = "[object Number]",
+                        stringClass = "[object String]",
+                        arrayClass = "[object Array]",
+                        booleanClass = "[object Boolean]";
 
-                for (k in value) {
-                    if (Object.prototype.hasOwnProperty.call(value, k)) {
-                        v = str(k, value);
+                    // Detect incomplete support for accessing string characters by index.
+                    var charIndexBuggy = has("bug-string-char-index");
 
-                        if (v) {
-                            partial.push(quote(k) + (gap ? ': ' : ':') + v);
-                        }
+                    // Define additional utility methods if the `Date` methods are buggy.
+                    if (!isExtended) {
+                        var floor = Math.floor;
+                        // A mapping between the months of the year and the number of days between
+                        // January 1st and the first of the respective month.
+                        var Months = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+                        // Internal: Calculates the number of days between the Unix epoch and the
+                        // first day of the given month.
+                        var getDay = function (year, month) {
+                            return Months[month] + 365 * (year - 1970) + floor((year - 1969 + (month = +(month > 1))) / 4) - floor((year - 1901 + month) / 100) + floor((year - 1601 + month) / 400);
+                        };
                     }
-                }
-            }
 
-// Join all of the member texts together, separated with commas,
-// and wrap them in braces.
-
-            v = partial.length === 0
-                ? '{}'
-                : gap
-                ?  '{\n' + gap + partial.join(',\n' + gap) + '\n' + mind + '}'
-                : '{' + partial.join(',') + '}';
-            gap = mind;
-
-            return v;
-        }
-    }
-
-// If the JSON object does not yet have a stringify method, give it one.
-
-    if (typeof JSON2.stringify !== 'function') {
-        JSON2.stringify = function (value, replacer, space) {
-
-// The stringify method takes a value and an optional replacer, and an optional
-// space parameter, and returns a JSON text. The replacer can be a function
-// that can replace values, or an array of strings that will select the keys.
-// A default replacer method can be provided. Use of the space parameter can
-// produce text that is more easily readable.
-
-            var i;
-            gap = '';
-            indent = '';
-
-// If the space parameter is a number, make an indent string containing that
-// many spaces.
-
-            if (typeof space === 'number') {
-                for (i = 0; i < space; i += 1) {
-                    indent += ' ';
-                }
-
-// If the space parameter is a string, it will be used as the indent string.
-
-            } else if (typeof space === 'string') {
-                indent = space;
-            }
-
-// If there is a replacer, it must be a function or an array.
-// Otherwise, throw an error.
-
-            rep = replacer;
-
-            if (replacer && typeof replacer !== 'function' &&
-                    (typeof replacer !== 'object' ||
-                    typeof replacer.length !== 'number')) {
-                throw new Error('JSON2.stringify');
-            }
-
-// Make a fake root object containing our value under the key of ''.
-// Return the result of stringifying the value.
-
-            return str('', {'': value});
-        };
-    }
-
-// If the JSON object does not yet have a parse method, give it one.
-
-    if (typeof JSON2.parse !== 'function') {
-        JSON2.parse = function (text, reviver) {
-
-// The parse method takes a text and an optional reviver function, and returns
-// a JavaScript value if the text is a valid JSON text.
-
-            var j;
-
-            function walk(holder, key) {
-
-// The walk method is used to recursively walk the resulting structure so
-// that modifications can be made.
-
-                var k, v, value = holder[key];
-
-                if (value && typeof value === 'object') {
-                    for (k in value) {
-                        if (Object.prototype.hasOwnProperty.call(value, k)) {
-                            v = walk(value, k);
-
-                            if (v !== undefined) {
-                                value[k] = v;
+                    // Internal: Determines if a property is a direct property of the given
+                    // object. Delegates to the native `Object#hasOwnProperty` method.
+                    if (!(isProperty = objectProto.hasOwnProperty)) {
+                        isProperty = function (property) {
+                            var members = {}, constructor;
+                            if ((members.__proto__ = null, members.__proto__ = {
+                                    // The *proto* property cannot be set multiple times in recent
+                                    // versions of Firefox and SeaMonkey.
+                                    "toString": 1
+                                }, members).toString != getClass) {
+                                // Safari <= 2.0.3 doesn't implement `Object#hasOwnProperty`, but
+                                // supports the mutable *proto* property.
+                                isProperty = function (property) {
+                                    // Capture and break the object's prototype chain (see section 8.6.2
+                                    // of the ES 5.1 spec). The parenthesized expression prevents an
+                                    // unsafe transformation by the Closure Compiler.
+                                    var original = this.__proto__, result = property in (this.__proto__ = null, this);
+                                    // Restore the original prototype chain.
+                                    this.__proto__ = original;
+                                    return result;
+                                };
                             } else {
-                                delete value[k];
+                                // Capture a reference to the top-level `Object` constructor.
+                                constructor = members.constructor;
+                                // Use the `constructor` property to simulate `Object#hasOwnProperty` in
+                                // other environments.
+                                isProperty = function (property) {
+                                    var parent = (this.constructor || constructor).prototype;
+                                    return property in this && !(property in parent && this[property] === parent[property]);
+                                };
+                            }
+                            members = null;
+                            return isProperty.call(this, property);
+                        };
+                    }
+
+                    // Internal: Normalizes the `for...in` iteration algorithm across
+                    // environments. Each enumerated key is yielded to a `callback` function.
+                    forEach = function (object, callback) {
+                        var size = 0, Properties, members, property;
+
+                        // Tests for bugs in the current environment's `for...in` algorithm. The
+                        // `valueOf` property inherits the non-enumerable flag from
+                        // `Object.prototype` in older versions of IE, Netscape, and Mozilla.
+                        (Properties = function () {
+                            this.valueOf = 0;
+                        }).prototype.valueOf = 0;
+
+                        // Iterate over a new instance of the `Properties` class.
+                        members = new Properties();
+                        for (property in members) {
+                            // Ignore all properties inherited from `Object.prototype`.
+                            if (isProperty.call(members, property)) {
+                                size++;
                             }
                         }
+                        Properties = members = null;
+
+                        // Normalize the iteration algorithm.
+                        if (!size) {
+                            // A list of non-enumerable properties inherited from `Object.prototype`.
+                            members = ["valueOf", "toString", "toLocaleString", "propertyIsEnumerable", "isPrototypeOf", "hasOwnProperty", "constructor"];
+                            // IE <= 8, Mozilla 1.0, and Netscape 6.2 ignore shadowed non-enumerable
+                            // properties.
+                            forEach = function (object, callback) {
+                                var isFunction = getClass.call(object) == functionClass, property, length;
+                                var hasProperty = !isFunction && typeof object.constructor != "function" && objectTypes[typeof object.hasOwnProperty] && object.hasOwnProperty || isProperty;
+                                for (property in object) {
+                                    // Gecko <= 1.0 enumerates the `prototype` property of functions under
+                                    // certain conditions; IE does not.
+                                    if (!(isFunction && property == "prototype") && hasProperty.call(object, property)) {
+                                        callback(property);
+                                    }
+                                }
+                                // Manually invoke the callback for each non-enumerable property.
+                                for (length = members.length; property = members[--length]; hasProperty.call(object, property) && callback(property));
+                            };
+                        } else if (size == 2) {
+                            // Safari <= 2.0.4 enumerates shadowed properties twice.
+                            forEach = function (object, callback) {
+                                // Create a set of iterated properties.
+                                var members = {}, isFunction = getClass.call(object) == functionClass, property;
+                                for (property in object) {
+                                    // Store each property name to prevent double enumeration. The
+                                    // `prototype` property of functions is not enumerated due to cross-
+                                    // environment inconsistencies.
+                                    if (!(isFunction && property == "prototype") && !isProperty.call(members, property) && (members[property] = 1) && isProperty.call(object, property)) {
+                                        callback(property);
+                                    }
+                                }
+                            };
+                        } else {
+                            // No bugs detected; use the standard `for...in` algorithm.
+                            forEach = function (object, callback) {
+                                var isFunction = getClass.call(object) == functionClass, property, isConstructor;
+                                for (property in object) {
+                                    if (!(isFunction && property == "prototype") && isProperty.call(object, property) && !(isConstructor = property === "constructor")) {
+                                        callback(property);
+                                    }
+                                }
+                                // Manually invoke the callback for the `constructor` property due to
+                                // cross-environment inconsistencies.
+                                if (isConstructor || isProperty.call(object, (property = "constructor"))) {
+                                    callback(property);
+                                }
+                            };
+                        }
+                        return forEach(object, callback);
+                    };
+
+                    // Public: Serializes a JavaScript `value` as a JSON string. The optional
+                    // `filter` argument may specify either a function that alters how object and
+                    // array members are serialized, or an array of strings and numbers that
+                    // indicates which properties should be serialized. The optional `width`
+                    // argument may be either a string or number that specifies the indentation
+                    // level of the output.
+                    if (!has("json-stringify")) {
+                        // Internal: A map of control characters and their escaped equivalents.
+                        var Escapes = {
+                            92: "\\\\",
+                            34: '\\"',
+                            8: "\\b",
+                            12: "\\f",
+                            10: "\\n",
+                            13: "\\r",
+                            9: "\\t"
+                        };
+
+                        // Internal: Converts `value` into a zero-padded string such that its
+                        // length is at least equal to `width`. The `width` must be <= 6.
+                        var leadingZeroes = "000000";
+                        var toPaddedString = function (width, value) {
+                            // The `|| 0` expression is necessary to work around a bug in
+                            // Opera <= 7.54u2 where `0 == -0`, but `String(-0) !== "0"`.
+                            return (leadingZeroes + (value || 0)).slice(-width);
+                        };
+
+                        // Internal: Double-quotes a string `value`, replacing all ASCII control
+                        // characters (characters with code unit values between 0 and 31) with
+                        // their escaped equivalents. This is an implementation of the
+                        // `Quote(value)` operation defined in ES 5.1 section 15.12.3.
+                        var unicodePrefix = "\\u00";
+                        var quote = function (value) {
+                            var result = '"', index = 0, length = value.length, useCharIndex = !charIndexBuggy || length > 10;
+                            var symbols = useCharIndex && (charIndexBuggy ? value.split("") : value);
+                            for (; index < length; index++) {
+                                var charCode = value.charCodeAt(index);
+                                // If the character is a control character, append its Unicode or
+                                // shorthand escape sequence; otherwise, append the character as-is.
+                                switch (charCode) {
+                                    case 8: case 9: case 10: case 12: case 13: case 34: case 92:
+                                    result += Escapes[charCode];
+                                    break;
+                                    default:
+                                        if (charCode < 32) {
+                                            result += unicodePrefix + toPaddedString(2, charCode.toString(16));
+                                            break;
+                                        }
+                                        result += useCharIndex ? symbols[index] : value.charAt(index);
+                                }
+                            }
+                            return result + '"';
+                        };
+
+                        // Internal: Recursively serializes an object. Implements the
+                        // `Str(key, holder)`, `JO(value)`, and `JA(value)` operations.
+                        var serialize = function (property, object, callback, properties, whitespace, indentation, stack) {
+                            var value, className, year, month, date, time, hours, minutes, seconds, milliseconds, results, element, index, length, prefix, result;
+                            try {
+                                // Necessary for host object support.
+                                value = object[property];
+                            } catch (exception) {}
+                            if (typeof value == "object" && value) {
+                                className = getClass.call(value);
+                                if (className == dateClass && !isProperty.call(value, "toJSON")) {
+                                    if (value > -1 / 0 && value < 1 / 0) {
+                                        // Dates are serialized according to the `Date#toJSON` method
+                                        // specified in ES 5.1 section 15.9.5.44. See section 15.9.1.15
+                                        // for the ISO 8601 date time string format.
+                                        if (getDay) {
+                                            // Manually compute the year, month, date, hours, minutes,
+                                            // seconds, and milliseconds if the `getUTC*` methods are
+                                            // buggy. Adapted from @Yaffle's `date-shim` project.
+                                            date = floor(value / 864e5);
+                                            for (year = floor(date / 365.2425) + 1970 - 1; getDay(year + 1, 0) <= date; year++);
+                                            for (month = floor((date - getDay(year, 0)) / 30.42); getDay(year, month + 1) <= date; month++);
+                                            date = 1 + date - getDay(year, month);
+                                            // The `time` value specifies the time within the day (see ES
+                                            // 5.1 section 15.9.1.2). The formula `(A % B + B) % B` is used
+                                            // to compute `A modulo B`, as the `%` operator does not
+                                            // correspond to the `modulo` operation for negative numbers.
+                                            time = (value % 864e5 + 864e5) % 864e5;
+                                            // The hours, minutes, seconds, and milliseconds are obtained by
+                                            // decomposing the time within the day. See section 15.9.1.10.
+                                            hours = floor(time / 36e5) % 24;
+                                            minutes = floor(time / 6e4) % 60;
+                                            seconds = floor(time / 1e3) % 60;
+                                            milliseconds = time % 1e3;
+                                        } else {
+                                            year = value.getUTCFullYear();
+                                            month = value.getUTCMonth();
+                                            date = value.getUTCDate();
+                                            hours = value.getUTCHours();
+                                            minutes = value.getUTCMinutes();
+                                            seconds = value.getUTCSeconds();
+                                            milliseconds = value.getUTCMilliseconds();
+                                        }
+                                        // Serialize extended years correctly.
+                                        value = (year <= 0 || year >= 1e4 ? (year < 0 ? "-" : "+") + toPaddedString(6, year < 0 ? -year : year) : toPaddedString(4, year)) +
+                                            "-" + toPaddedString(2, month + 1) + "-" + toPaddedString(2, date) +
+                                                // Months, dates, hours, minutes, and seconds should have two
+                                                // digits; milliseconds should have three.
+                                            "T" + toPaddedString(2, hours) + ":" + toPaddedString(2, minutes) + ":" + toPaddedString(2, seconds) +
+                                                // Milliseconds are optional in ES 5.0, but required in 5.1.
+                                            "." + toPaddedString(3, milliseconds) + "Z";
+                                    } else {
+                                        value = null;
+                                    }
+                                } else if (typeof value.toJSON == "function" && ((className != numberClass && className != stringClass && className != arrayClass) || isProperty.call(value, "toJSON"))) {
+                                    // Prototype <= 1.6.1 adds non-standard `toJSON` methods to the
+                                    // `Number`, `String`, `Date`, and `Array` prototypes. JSON 3
+                                    // ignores all `toJSON` methods on these objects unless they are
+                                    // defined directly on an instance.
+                                    value = value.toJSON(property);
+                                }
+                            }
+                            if (callback) {
+                                // If a replacement function was provided, call it to obtain the value
+                                // for serialization.
+                                value = callback.call(object, property, value);
+                            }
+                            if (value === null) {
+                                return "null";
+                            }
+                            className = getClass.call(value);
+                            if (className == booleanClass) {
+                                // Booleans are represented literally.
+                                return "" + value;
+                            } else if (className == numberClass) {
+                                // JSON numbers must be finite. `Infinity` and `NaN` are serialized as
+                                // `"null"`.
+                                return value > -1 / 0 && value < 1 / 0 ? "" + value : "null";
+                            } else if (className == stringClass) {
+                                // Strings are double-quoted and escaped.
+                                return quote("" + value);
+                            }
+                            // Recursively serialize objects and arrays.
+                            if (typeof value == "object") {
+                                // Check for cyclic structures. This is a linear search; performance
+                                // is inversely proportional to the number of unique nested objects.
+                                for (length = stack.length; length--;) {
+                                    if (stack[length] === value) {
+                                        // Cyclic structures cannot be serialized by `JSON.stringify`.
+                                        throw TypeError();
+                                    }
+                                }
+                                // Add the object to the stack of traversed objects.
+                                stack.push(value);
+                                results = [];
+                                // Save the current indentation level and indent one additional level.
+                                prefix = indentation;
+                                indentation += whitespace;
+                                if (className == arrayClass) {
+                                    // Recursively serialize array elements.
+                                    for (index = 0, length = value.length; index < length; index++) {
+                                        element = serialize(index, value, callback, properties, whitespace, indentation, stack);
+                                        results.push(element === undef ? "null" : element);
+                                    }
+                                    result = results.length ? (whitespace ? "[\n" + indentation + results.join(",\n" + indentation) + "\n" + prefix + "]" : ("[" + results.join(",") + "]")) : "[]";
+                                } else {
+                                    // Recursively serialize object members. Members are selected from
+                                    // either a user-specified list of property names, or the object
+                                    // itself.
+                                    forEach(properties || value, function (property) {
+                                        var element = serialize(property, value, callback, properties, whitespace, indentation, stack);
+                                        if (element !== undef) {
+                                            // According to ES 5.1 section 15.12.3: "If `gap` {whitespace}
+                                            // is not the empty string, let `member` {quote(property) + ":"}
+                                            // be the concatenation of `member` and the `space` character."
+                                            // The "`space` character" refers to the literal space
+                                            // character, not the `space` {width} argument provided to
+                                            // `JSON.stringify`.
+                                            results.push(quote(property) + ":" + (whitespace ? " " : "") + element);
+                                        }
+                                    });
+                                    result = results.length ? (whitespace ? "{\n" + indentation + results.join(",\n" + indentation) + "\n" + prefix + "}" : ("{" + results.join(",") + "}")) : "{}";
+                                }
+                                // Remove the object from the traversed object stack.
+                                stack.pop();
+                                return result;
+                            }
+                        };
+
+                        // Public: `JSON.stringify`. See ES 5.1 section 15.12.3.
+                        exports.stringify = function (source, filter, width) {
+                            var whitespace, callback, properties, className;
+                            if (objectTypes[typeof filter] && filter) {
+                                if ((className = getClass.call(filter)) == functionClass) {
+                                    callback = filter;
+                                } else if (className == arrayClass) {
+                                    // Convert the property names array into a makeshift set.
+                                    properties = {};
+                                    for (var index = 0, length = filter.length, value; index < length; value = filter[index++], ((className = getClass.call(value)), className == stringClass || className == numberClass) && (properties[value] = 1));
+                                }
+                            }
+                            if (width) {
+                                if ((className = getClass.call(width)) == numberClass) {
+                                    // Convert the `width` to an integer and create a string containing
+                                    // `width` number of space characters.
+                                    if ((width -= width % 1) > 0) {
+                                        for (whitespace = "", width > 10 && (width = 10); whitespace.length < width; whitespace += " ");
+                                    }
+                                } else if (className == stringClass) {
+                                    whitespace = width.length <= 10 ? width : width.slice(0, 10);
+                                }
+                            }
+                            // Opera <= 7.54u2 discards the values associated with empty string keys
+                            // (`""`) only if they are used directly within an object member list
+                            // (e.g., `!("" in { "": 1})`).
+                            return serialize("", (value = {}, value[""] = source, value), callback, properties, whitespace, "", []);
+                        };
+                    }
+
+                    // Public: Parses a JSON source string.
+                    if (!has("json-parse")) {
+                        var fromCharCode = String.fromCharCode;
+
+                        // Internal: A map of escaped control characters and their unescaped
+                        // equivalents.
+                        var Unescapes = {
+                            92: "\\",
+                            34: '"',
+                            47: "/",
+                            98: "\b",
+                            116: "\t",
+                            110: "\n",
+                            102: "\f",
+                            114: "\r"
+                        };
+
+                        // Internal: Stores the parser state.
+                        var Index, Source;
+
+                        // Internal: Resets the parser state and throws a `SyntaxError`.
+                        var abort = function () {
+                            Index = Source = null;
+                            throw SyntaxError();
+                        };
+
+                        // Internal: Returns the next token, or `"$"` if the parser has reached
+                        // the end of the source string. A token may be a string, number, `null`
+                        // literal, or Boolean literal.
+                        var lex = function () {
+                            var source = Source, length = source.length, value, begin, position, isSigned, charCode;
+                            while (Index < length) {
+                                charCode = source.charCodeAt(Index);
+                                switch (charCode) {
+                                    case 9: case 10: case 13: case 32:
+                                    // Skip whitespace tokens, including tabs, carriage returns, line
+                                    // feeds, and space characters.
+                                    Index++;
+                                    break;
+                                    case 123: case 125: case 91: case 93: case 58: case 44:
+                                    // Parse a punctuator token (`{`, `}`, `[`, `]`, `:`, or `,`) at
+                                    // the current position.
+                                    value = charIndexBuggy ? source.charAt(Index) : source[Index];
+                                    Index++;
+                                    return value;
+                                    case 34:
+                                        // `"` delimits a JSON string; advance to the next character and
+                                        // begin parsing the string. String tokens are prefixed with the
+                                        // sentinel `@` character to distinguish them from punctuators and
+                                        // end-of-string tokens.
+                                        for (value = "@", Index++; Index < length;) {
+                                            charCode = source.charCodeAt(Index);
+                                            if (charCode < 32) {
+                                                // Unescaped ASCII control characters (those with a code unit
+                                                // less than the space character) are not permitted.
+                                                abort();
+                                            } else if (charCode == 92) {
+                                                // A reverse solidus (`\`) marks the beginning of an escaped
+                                                // control character (including `"`, `\`, and `/`) or Unicode
+                                                // escape sequence.
+                                                charCode = source.charCodeAt(++Index);
+                                                switch (charCode) {
+                                                    case 92: case 34: case 47: case 98: case 116: case 110: case 102: case 114:
+                                                    // Revive escaped control characters.
+                                                    value += Unescapes[charCode];
+                                                    Index++;
+                                                    break;
+                                                    case 117:
+                                                        // `\u` marks the beginning of a Unicode escape sequence.
+                                                        // Advance to the first character and validate the
+                                                        // four-digit code point.
+                                                        begin = ++Index;
+                                                        for (position = Index + 4; Index < position; Index++) {
+                                                            charCode = source.charCodeAt(Index);
+                                                            // A valid sequence comprises four hexdigits (case-
+                                                            // insensitive) that form a single hexadecimal value.
+                                                            if (!(charCode >= 48 && charCode <= 57 || charCode >= 97 && charCode <= 102 || charCode >= 65 && charCode <= 70)) {
+                                                                // Invalid Unicode escape sequence.
+                                                                abort();
+                                                            }
+                                                        }
+                                                        // Revive the escaped character.
+                                                        value += fromCharCode("0x" + source.slice(begin, Index));
+                                                        break;
+                                                    default:
+                                                        // Invalid escape sequence.
+                                                        abort();
+                                                }
+                                            } else {
+                                                if (charCode == 34) {
+                                                    // An unescaped double-quote character marks the end of the
+                                                    // string.
+                                                    break;
+                                                }
+                                                charCode = source.charCodeAt(Index);
+                                                begin = Index;
+                                                // Optimize for the common case where a string is valid.
+                                                while (charCode >= 32 && charCode != 92 && charCode != 34) {
+                                                    charCode = source.charCodeAt(++Index);
+                                                }
+                                                // Append the string as-is.
+                                                value += source.slice(begin, Index);
+                                            }
+                                        }
+                                        if (source.charCodeAt(Index) == 34) {
+                                            // Advance to the next character and return the revived string.
+                                            Index++;
+                                            return value;
+                                        }
+                                        // Unterminated string.
+                                        abort();
+                                    default:
+                                        // Parse numbers and literals.
+                                        begin = Index;
+                                        // Advance past the negative sign, if one is specified.
+                                        if (charCode == 45) {
+                                            isSigned = true;
+                                            charCode = source.charCodeAt(++Index);
+                                        }
+                                        // Parse an integer or floating-point value.
+                                        if (charCode >= 48 && charCode <= 57) {
+                                            // Leading zeroes are interpreted as octal literals.
+                                            if (charCode == 48 && ((charCode = source.charCodeAt(Index + 1)), charCode >= 48 && charCode <= 57)) {
+                                                // Illegal octal literal.
+                                                abort();
+                                            }
+                                            isSigned = false;
+                                            // Parse the integer component.
+                                            for (; Index < length && ((charCode = source.charCodeAt(Index)), charCode >= 48 && charCode <= 57); Index++);
+                                            // Floats cannot contain a leading decimal point; however, this
+                                            // case is already accounted for by the parser.
+                                            if (source.charCodeAt(Index) == 46) {
+                                                position = ++Index;
+                                                // Parse the decimal component.
+                                                for (; position < length && ((charCode = source.charCodeAt(position)), charCode >= 48 && charCode <= 57); position++);
+                                                if (position == Index) {
+                                                    // Illegal trailing decimal.
+                                                    abort();
+                                                }
+                                                Index = position;
+                                            }
+                                            // Parse exponents. The `e` denoting the exponent is
+                                            // case-insensitive.
+                                            charCode = source.charCodeAt(Index);
+                                            if (charCode == 101 || charCode == 69) {
+                                                charCode = source.charCodeAt(++Index);
+                                                // Skip past the sign following the exponent, if one is
+                                                // specified.
+                                                if (charCode == 43 || charCode == 45) {
+                                                    Index++;
+                                                }
+                                                // Parse the exponential component.
+                                                for (position = Index; position < length && ((charCode = source.charCodeAt(position)), charCode >= 48 && charCode <= 57); position++);
+                                                if (position == Index) {
+                                                    // Illegal empty exponent.
+                                                    abort();
+                                                }
+                                                Index = position;
+                                            }
+                                            // Coerce the parsed value to a JavaScript number.
+                                            return +source.slice(begin, Index);
+                                        }
+                                        // A negative sign may only precede numbers.
+                                        if (isSigned) {
+                                            abort();
+                                        }
+                                        // `true`, `false`, and `null` literals.
+                                        if (source.slice(Index, Index + 4) == "true") {
+                                            Index += 4;
+                                            return true;
+                                        } else if (source.slice(Index, Index + 5) == "false") {
+                                            Index += 5;
+                                            return false;
+                                        } else if (source.slice(Index, Index + 4) == "null") {
+                                            Index += 4;
+                                            return null;
+                                        }
+                                        // Unrecognized token.
+                                        abort();
+                                }
+                            }
+                            // Return the sentinel `$` character if the parser has reached the end
+                            // of the source string.
+                            return "$";
+                        };
+
+                        // Internal: Parses a JSON `value` token.
+                        var get = function (value) {
+                            var results, hasMembers;
+                            if (value == "$") {
+                                // Unexpected end of input.
+                                abort();
+                            }
+                            if (typeof value == "string") {
+                                if ((charIndexBuggy ? value.charAt(0) : value[0]) == "@") {
+                                    // Remove the sentinel `@` character.
+                                    return value.slice(1);
+                                }
+                                // Parse object and array literals.
+                                if (value == "[") {
+                                    // Parses a JSON array, returning a new JavaScript array.
+                                    results = [];
+                                    for (;; hasMembers || (hasMembers = true)) {
+                                        value = lex();
+                                        // A closing square bracket marks the end of the array literal.
+                                        if (value == "]") {
+                                            break;
+                                        }
+                                        // If the array literal contains elements, the current token
+                                        // should be a comma separating the previous element from the
+                                        // next.
+                                        if (hasMembers) {
+                                            if (value == ",") {
+                                                value = lex();
+                                                if (value == "]") {
+                                                    // Unexpected trailing `,` in array literal.
+                                                    abort();
+                                                }
+                                            } else {
+                                                // A `,` must separate each array element.
+                                                abort();
+                                            }
+                                        }
+                                        // Elisions and leading commas are not permitted.
+                                        if (value == ",") {
+                                            abort();
+                                        }
+                                        results.push(get(value));
+                                    }
+                                    return results;
+                                } else if (value == "{") {
+                                    // Parses a JSON object, returning a new JavaScript object.
+                                    results = {};
+                                    for (;; hasMembers || (hasMembers = true)) {
+                                        value = lex();
+                                        // A closing curly brace marks the end of the object literal.
+                                        if (value == "}") {
+                                            break;
+                                        }
+                                        // If the object literal contains members, the current token
+                                        // should be a comma separator.
+                                        if (hasMembers) {
+                                            if (value == ",") {
+                                                value = lex();
+                                                if (value == "}") {
+                                                    // Unexpected trailing `,` in object literal.
+                                                    abort();
+                                                }
+                                            } else {
+                                                // A `,` must separate each object member.
+                                                abort();
+                                            }
+                                        }
+                                        // Leading commas are not permitted, object property names must be
+                                        // double-quoted strings, and a `:` must separate each property
+                                        // name and value.
+                                        if (value == "," || typeof value != "string" || (charIndexBuggy ? value.charAt(0) : value[0]) != "@" || lex() != ":") {
+                                            abort();
+                                        }
+                                        results[value.slice(1)] = get(lex());
+                                    }
+                                    return results;
+                                }
+                                // Unexpected token encountered.
+                                abort();
+                            }
+                            return value;
+                        };
+
+                        // Internal: Updates a traversed object member.
+                        var update = function (source, property, callback) {
+                            var element = walk(source, property, callback);
+                            if (element === undef) {
+                                delete source[property];
+                            } else {
+                                source[property] = element;
+                            }
+                        };
+
+                        // Internal: Recursively traverses a parsed JSON object, invoking the
+                        // `callback` function for each value. This is an implementation of the
+                        // `Walk(holder, name)` operation defined in ES 5.1 section 15.12.2.
+                        var walk = function (source, property, callback) {
+                            var value = source[property], length;
+                            if (typeof value == "object" && value) {
+                                // `forEach` can't be used to traverse an array in Opera <= 8.54
+                                // because its `Object#hasOwnProperty` implementation returns `false`
+                                // for array indices (e.g., `![1, 2, 3].hasOwnProperty("0")`).
+                                if (getClass.call(value) == arrayClass) {
+                                    for (length = value.length; length--;) {
+                                        update(value, length, callback);
+                                    }
+                                } else {
+                                    forEach(value, function (property) {
+                                        update(value, property, callback);
+                                    });
+                                }
+                            }
+                            return callback.call(source, property, value);
+                        };
+
+                        // Public: `JSON.parse`. See ES 5.1 section 15.12.2.
+                        exports.parse = function (source, callback) {
+                            var result, value;
+                            Index = 0;
+                            Source = "" + source;
+                            result = get(lex());
+                            // If a JSON string contains multiple tokens, it is invalid.
+                            if (lex() != "$") {
+                                abort();
+                            }
+                            // Reset the parser state.
+                            Index = Source = null;
+                            return callback && getClass.call(callback) == functionClass ? walk((value = {}, value[""] = result, value), "", callback) : result;
+                        };
                     }
                 }
 
-                return reviver.call(holder, key, value);
+                exports["runInContext"] = runInContext;
+                return exports;
             }
 
-// Parsing happens in four stages. In the first stage, we replace certain
-// Unicode characters with escape sequences. JavaScript handles many characters
-// incorrectly, either silently deleting them, or treating them as line endings.
+            if (freeExports && !isLoader) {
+                // Export for CommonJS environments.
+                runInContext(root, freeExports);
+            } else {
+                // Export for web browsers and JavaScript engines.
+                var nativeJSON = root.JSON,
+                    previousJSON = root["JSON3"],
+                    isRestored = false;
 
-            text = String(text);
-            cx.lastIndex = 0;
+                var JSON3 = runInContext(root, (root["JSON3"] = {
+                    // Public: Restores the original value of the global `JSON` object and
+                    // returns a reference to the `JSON3` object.
+                    "noConflict": function () {
+                        if (!isRestored) {
+                            isRestored = true;
+                            root.JSON = nativeJSON;
+                            root["JSON3"] = previousJSON;
+                            nativeJSON = previousJSON = null;
+                        }
+                        return JSON3;
+                    }
+                }));
 
-            if (cx.test(text)) {
-                text = text.replace(cx, function (a) {
-                    return '\\u' +
-                        ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
+                root.JSON = {
+                    "parse": JSON3.parse,
+                    "stringify": JSON3.stringify
+                };
+            }
+
+            // Export for asynchronous module loaders.
+            if (isLoader) {
+                define(function () {
+                    return JSON3;
                 });
             }
+        }).call(this);
+        /************************************************************
+         * end JSON
+         ************************************************************/
 
-// In the second stage, we run the text against regular expressions that look
-// for non-JSON patterns. We are especially concerned with '()' and 'new'
-// because they can cause invocation, and '=' because it can cause mutation.
-// But just to be safe, we want to reject all unexpected forms.
+        JSON2 = exports;
 
-// We split the second stage into 4 regexp operations in order to work around
-// crippling inefficiencies in IE's and Safari's regexp engines. First we
-// replace the JSON backslash pairs with '@' (a non-JSON character). Second, we
-// replace all simple value tokens with ']' characters. Third, we delete all
-// open brackets that follow a colon or comma or that begin the text. Finally,
-// we look to see that the remaining characters are only whitespace or ']' or
-// ',' or ':' or '{' or '}'. If that is so, then the text is safe for eval.
+    })();
+}
 
-            if ((new RegExp('^[\\],:{}\\s]*$'))
-                    .test(text.replace(new RegExp('\\\\(?:["\\\\/bfnrt]|u[0-9a-fA-F]{4})', 'g'), '@')
-                        .replace(new RegExp('"[^"\\\\\n\r]*"|true|false|null|-?\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?', 'g'), ']')
-                        .replace(new RegExp('(?:^|:|,)(?:\\s*\\[)+', 'g'), ''))) {
-
-// In the third stage we use the eval function to compile the text into a
-// JavaScript structure. The '{' operator is subject to a syntactic ambiguity
-// in JavaScript: it can begin a block or an object literal. We wrap the text
-// in parens to eliminate the ambiguity.
-
-                j = eval('(' + text + ')');
-
-// In the optional fourth stage, we recursively walk the new structure, passing
-// each name/value pair to a reviver function for possible transformation.
-
-                return typeof reviver === 'function'
-                    ?  walk({'': j}, '')
-                    : j;
-            }
-
-// If the text is not JSON parseable, then a SyntaxError is thrown.
-
-            throw new SyntaxError('JSON2.parse');
-        };
-    }
-}());
-/************************************************************
- * end JSON
- ************************************************************/
-
-/*jslint browser:true, plusplus:true, vars:true, nomen:true, evil:true */
+/* startjslint */
+/*jslint browser:true, plusplus:true, vars:true, nomen:true, evil:true, regexp: false, bitwise: true, white: true */
+/*global JSON2 */
 /*global window */
 /*global unescape */
 /*global ActiveXObject */
-/*members encodeURIComponent, decodeURIComponent, getElementsByTagName,
-    shift, unshift, piwikAsyncInit,
+/*members Piwik, encodeURIComponent, decodeURIComponent, getElementsByTagName,
+    shift, unshift, piwikAsyncInit, frameElement, self, hasFocus,
     createElement, appendChild, characterSet, charset, all,
     addEventListener, attachEvent, removeEventListener, detachEvent, disableCookies,
     cookie, domain, readyState, documentElement, doScroll, title, text,
@@ -410,15 +972,15 @@ if (typeof JSON2 !== 'object') {
     onload, src,
     min, round, random,
     exec,
-    res, width, height, devicePixelRatio,
+    res, width, height,
     pdf, qt, realp, wma, dir, fla, java, gears, ag,
     hook, getHook, getVisitorId, getVisitorInfo, setUserId, getUserId, setSiteId, getSiteId, setTrackerUrl, getTrackerUrl, appendToTrackingUrl, getRequest, addPlugin,
     getAttributionInfo, getAttributionCampaignName, getAttributionCampaignKeyword,
     getAttributionReferrerTimestamp, getAttributionReferrerUrl,
     setCustomData, getCustomData,
     setCustomRequestProcessing,
-    setCustomVariable, getCustomVariable, deleteCustomVariable, storeCustomVariablesInCookie,
-    setDownloadExtensions, addDownloadExtensions, removeDownloadExtensions,
+    setCustomVariable, getCustomVariable, deleteCustomVariable, storeCustomVariablesInCookie, setCustomDimension, getCustomDimension,
+    deleteCustomDimension, setDownloadExtensions, addDownloadExtensions, removeDownloadExtensions,
     setDomains, setIgnoreClasses, setRequestMethod, setRequestContentType,
     setReferrerUrl, setCustomUrl, setAPIUrl, setDocumentTitle,
     setDownloadClasses, setLinkClasses,
@@ -455,13 +1017,15 @@ if (typeof JSON2 !== 'object') {
     getTrackedContentImpressions, getCurrentlyVisibleContentImpressionsRequestsIfNotTrackedYet,
     contentInteractionTrackingSetupDone, contains, match, pathname, piece, trackContentInteractionNode,
     trackContentInteractionNode, trackContentImpressionsWithinNode, trackContentImpression,
-    enableTrackOnlyVisibleContent, trackContentInteraction, clearEnableTrackOnlyVisibleContent,
+    enableTrackOnlyVisibleContent, trackContentInteraction, clearEnableTrackOnlyVisibleContent, logAllContentBlocksOnPage,
     trackVisibleContentImpressions, isTrackOnlyVisibleContentEnabled, port, isUrlToCurrentDomain,
     isNodeAuthorizedToTriggerInteraction, replaceHrefIfInternalLink, getConfigDownloadExtensions, disableLinkTracking,
     substr, setAnyAttribute, wasContentTargetAttrReplaced, max, abs, childNodes, compareDocumentPosition, body,
-    getConfigVisitorCookieTimeout, getRemainingVisitorCookieTimeout,
-    newVisitor, uuid, createTs, visitCount, currentVisitTs, lastVisitTs, lastEcommerceOrderTs
-
+    getConfigVisitorCookieTimeout, getRemainingVisitorCookieTimeout, getDomains, getConfigCookiePath,
+    newVisitor, uuid, createTs, visitCount, currentVisitTs, lastVisitTs, lastEcommerceOrderTs,
+     "", "\b", "\t", "\n", "\f", "\r", "\"", "\\", apply, call, charCodeAt, getUTCDate, getUTCFullYear, getUTCHours,
+    getUTCMinutes, getUTCMonth, getUTCSeconds, hasOwnProperty, join, lastIndex, length, parse, prototype, push, replace,
+    sort, slice, stringify, test, toJSON, toString, valueOf, objectToJSON, addTracker, removeAllAsyncTrackersButFirst
  */
 /*global _paq:true */
 /*members push */
@@ -474,6 +1038,7 @@ if (typeof JSON2 !== 'object') {
 /*members amd */
 /*global console:true */
 /*members error */
+/*members log */
 
 // asynchronous tracker (or proxy)
 if (typeof _paq !== 'object') {
@@ -481,8 +1046,8 @@ if (typeof _paq !== 'object') {
 }
 
 // Piwik singleton and namespace
-if (typeof Piwik !== 'object') {
-    Piwik = (function () {
+if (typeof window.Piwik !== 'object') {
+    window.Piwik = (function () {
         'use strict';
 
         /************************************************************
@@ -503,10 +1068,6 @@ if (typeof Piwik !== 'object') {
             /* performance timing */
             performanceAlias = windowAlias.performance || windowAlias.mozPerformance || windowAlias.msPerformance || windowAlias.webkitPerformance,
 
-            /* DOM Ready */
-            hasLoaded = false,
-            registeredOnLoadHandlers = [],
-
             /* encode */
             encodeWrapper = windowAlias.encodeURIComponent,
 
@@ -517,7 +1078,7 @@ if (typeof Piwik !== 'object') {
             urldecode = unescape,
 
             /* asynchronous tracker */
-            asyncTracker,
+            asyncTrackers = [],
 
             /* iterator */
             iterator,
@@ -578,6 +1139,34 @@ if (typeof Piwik !== 'object') {
             return typeof property === 'string' || property instanceof String;
         }
 
+        function isObjectEmpty(property)
+        {
+            if (!property) {
+                return true;
+            }
+
+            var i;
+            var isEmpty = true;
+            for (i in property) {
+                if (Object.prototype.hasOwnProperty.call(property, i)) {
+                    isEmpty = false;
+                }
+            }
+
+            return isEmpty;
+        }
+
+        /**
+         * Logs an error in the console.
+         *  Note: it does not generate a JavaScript error, so make sure to also generate an error if needed.
+         * @param message
+         */
+        function logConsoleError(message) {
+            if (console !== undefined && console && console.error) {
+                console.error(message);
+            }
+        }
+
         /*
          * apply wrapper
          *
@@ -587,17 +1176,37 @@ if (typeof Piwik !== 'object') {
          *      [ functionObject, optional_parameters ]
          */
         function apply() {
-            var i, f, parameterArray;
+            var i, j, f, parameterArray;
 
             for (i = 0; i < arguments.length; i += 1) {
                 parameterArray = arguments[i];
                 f = parameterArray.shift();
 
-                if (isString(f)) {
-                    asyncTracker[f].apply(asyncTracker, parameterArray);
-                } else {
-                    f.apply(asyncTracker, parameterArray);
+                for (j = 0; j < asyncTrackers.length; j++) {
+                    if (isString(f)) {
+
+                        if(asyncTrackers[j][f]) {
+                            asyncTrackers[j][f].apply(asyncTrackers[j], parameterArray);
+                        } else {
+                            var message = 'The method \'' + f + '\' was not found in "_paq" variable.  Please have a look at the Piwik tracker documentation: http://developer.piwik.org/api-reference/tracking-javascript';
+                            logConsoleError(message);
+                            throw new TypeError(message);
+                        }
+
+                        if (f === 'addTracker') {
+                            // addTracker adds an entry to asyncTrackers and would otherwise result in an endless loop
+                            break;
+                        }
+
+                        if (f === 'setTrackerUrl' || f === 'setSiteId') {
+                            // these two methods should be only executed on the first tracker
+                            break;
+                        }
+                    } else {
+                        f.apply(asyncTrackers[j], parameterArray);
+                    }
                 }
+
             }
         }
 
@@ -624,14 +1233,17 @@ if (typeof Piwik !== 'object') {
         function executePluginMethod(methodName, callback) {
             var result = '',
                 i,
-                pluginMethod;
+                pluginMethod, value;
 
             for (i in plugins) {
                 if (Object.prototype.hasOwnProperty.call(plugins, i)) {
                     pluginMethod = plugins[i][methodName];
 
                     if (isFunction(pluginMethod)) {
-                        result += pluginMethod(callback);
+                        value = pluginMethod(callback);
+                        if (value) {
+                            result += value;
+                        }
                     }
                 }
             }
@@ -662,72 +1274,6 @@ if (typeof Piwik !== 'object') {
                     now = new Date();
                 } while (now.getTimeAlias() < expireDateTime);
             }
-        }
-
-        /*
-         * Handler for onload event
-         */
-        function loadHandler() {
-            var i;
-
-            if (!hasLoaded) {
-                hasLoaded = true;
-                executePluginMethod('load');
-                for (i = 0; i < registeredOnLoadHandlers.length; i++) {
-                    registeredOnLoadHandlers[i]();
-                }
-            }
-
-            return true;
-        }
-
-        /*
-         * Add onload or DOM ready handler
-         */
-        function addReadyListener() {
-            var _timer;
-
-            if (documentAlias.addEventListener) {
-                addEventListener(documentAlias, 'DOMContentLoaded', function ready() {
-                    documentAlias.removeEventListener('DOMContentLoaded', ready, false);
-                    loadHandler();
-                });
-            } else if (documentAlias.attachEvent) {
-                documentAlias.attachEvent('onreadystatechange', function ready() {
-                    if (documentAlias.readyState === 'complete') {
-                        documentAlias.detachEvent('onreadystatechange', ready);
-                        loadHandler();
-                    }
-                });
-
-                if (documentAlias.documentElement.doScroll && windowAlias === windowAlias.top) {
-                    (function ready() {
-                        if (!hasLoaded) {
-                            try {
-                                documentAlias.documentElement.doScroll('left');
-                            } catch (error) {
-                                setTimeout(ready, 0);
-
-                                return;
-                            }
-                            loadHandler();
-                        }
-                    }());
-                }
-            }
-
-            // sniff for older WebKit versions
-            if ((new RegExp('WebKit')).test(navigatorAlias.userAgent)) {
-                _timer = setInterval(function () {
-                    if (hasLoaded || /loaded|complete/.test(documentAlias.readyState)) {
-                        clearInterval(_timer);
-                        loadHandler();
-                    }
-                }, 10);
-            }
-
-            // fallback
-            addEventListener(windowAlias, 'load', loadHandler, false);
         }
 
         /*
@@ -970,6 +1516,14 @@ if (typeof Piwik !== 'object') {
          * Fix-up URL when page rendered from search engine cache or translated page
          */
         function urlFixup(hostName, href, referrer) {
+            if (!hostName) {
+                hostName = '';
+            }
+
+            if (!href) {
+                href = '';
+            }
+
             if (hostName === 'translate.googleusercontent.com') {       // Google
                 if (referrer === '') {
                     referrer = href;
@@ -1001,6 +1555,10 @@ if (typeof Piwik !== 'object') {
             // remove leading '*'
             if (domain.slice(0, 2) === '*.') {
                 domain = domain.slice(1);
+            }
+
+            if (domain.indexOf('/') !== -1) {
+                domain = domain.substr(0, domain.indexOf('/'));
             }
 
             return domain;
@@ -1106,6 +1664,26 @@ if (typeof Piwik !== 'object') {
                 k++;
             }
             return -1;
+        }
+
+        function stringStartsWith(str, prefix) {
+            str = String(str);
+            return str.lastIndexOf(prefix, 0) === 0;
+        }
+
+        function stringEndsWith(str, suffix) {
+            str = String(str);
+            return str.indexOf(suffix, str.length - suffix.length) !== -1;
+        }
+
+        function stringContains(str, needle) {
+            str = String(str);
+            return str.indexOf(needle) !== -1;
+        }
+
+        function removeCharactersFromEndOfString(str, numCharactersToRemove) {
+            str = String(str);
+            return str.substr(0, str.length - numCharactersToRemove);
         }
 
         /************************************************************
@@ -1492,7 +2070,7 @@ if (typeof Piwik !== 'object') {
                     var foundNodes = nodeToSearch.getElementsByClassName(className);
                     return this.htmlCollectionToArray(foundNodes);
                 }
-                
+
                 var children = getChildrenFromNode(nodeToSearch);
 
                 if (!children || !children.length) {
@@ -2064,10 +2642,29 @@ if (typeof Piwik !== 'object') {
                 return apiUrl;
             }
 
-            if (trackerUrl.slice(-9) === 'piwik.php') {
-                trackerUrl = trackerUrl.slice(0, trackerUrl.length - 9);
+            // if eg http://www.example.com/js/tracker.php?version=232323 => http://www.example.com/js/tracker.php
+            if (stringContains(trackerUrl, '?')) {
+                var posQuery = trackerUrl.indexOf('?');
+                trackerUrl   = trackerUrl.slice(0, posQuery);
             }
 
+            if (stringEndsWith(trackerUrl, 'piwik.php')) {
+                // if eg without domain or path "piwik.php" => ''
+                trackerUrl = removeCharactersFromEndOfString(trackerUrl, 'piwik.php'.length);
+            } else if (stringEndsWith(trackerUrl, '.php')) {
+                // if eg http://www.example.com/js/piwik.php => http://www.example.com/js/
+                // or if eg http://www.example.com/tracker.php => http://www.example.com/
+                var lastSlash = trackerUrl.lastIndexOf('/');
+                var includeLastSlash = 1;
+                trackerUrl = trackerUrl.slice(0, lastSlash + includeLastSlash);
+            }
+
+            // if eg http://www.example.com/js/ => http://www.example.com/ (when not minified Piwik JS loaded)
+            if (stringEndsWith(trackerUrl, '/js/')) {
+                trackerUrl = removeCharactersFromEndOfString(trackerUrl, 'js/'.length);
+            }
+
+            // http://www.example.com/
             return trackerUrl;
         }
 
@@ -2083,7 +2680,7 @@ if (typeof Piwik !== 'object') {
 
             // check whether we were redirected from the piwik overlay plugin
             var referrerRegExp = new RegExp('index\\.php\\?module=Overlay&action=startOverlaySession'
-                               + '&idSite=([0-9]+)&period=([^&]+)&date=([^&]+)$');
+                               + '&idSite=([0-9]+)&period=([^&]+)&date=([^&]+)(&segment=.*)?$');
 
             var match = referrerRegExp.exec(documentAlias.referrer);
 
@@ -2097,15 +2694,22 @@ if (typeof Piwik !== 'object') {
 
                 // store overlay session info in window name
                 var period = match[2],
-                    date = match[3];
+                    date = match[3],
+                    segment = match[4];
 
-                windowAlias.name = windowName + '###' + period + '###' + date;
+                if (!segment) {
+                    segment = '';
+                } else if (segment.indexOf('&segment=') === 0) {
+                    segment = segment.substr('&segment='.length);
+                }
+
+                windowAlias.name = windowName + '###' + period + '###' + date + '###' + segment;
             }
 
             // retrieve and check data from window name
             var windowNameParts = windowAlias.name.split('###');
 
-            return windowNameParts.length === 3 && windowNameParts[0] === windowName;
+            return windowNameParts.length === 4 && windowNameParts[0] === windowName;
         }
 
         /*
@@ -2115,14 +2719,38 @@ if (typeof Piwik !== 'object') {
             var windowNameParts = windowAlias.name.split('###'),
                 period = windowNameParts[1],
                 date = windowNameParts[2],
+                segment = windowNameParts[3],
                 piwikUrl = getPiwikUrlForOverlay(configTrackerUrl, configApiUrl);
 
             loadScript(
                 piwikUrl + 'plugins/Overlay/client/client.js?v=1',
                 function () {
-                    Piwik_Overlay_Client.initialize(piwikUrl, configTrackerSiteId, period, date);
+                    Piwik_Overlay_Client.initialize(piwikUrl, configTrackerSiteId, period, date, segment);
                 }
             );
+        }
+
+        function isInsideAnIframe () {
+            var frameElement;
+
+            try {
+                // If the parent window has another origin, then accessing frameElement
+                // throws an Error in IE. see issue #10105.
+                frameElement = windowAlias.frameElement;
+            } catch(e) {
+                // When there was an Error, then we know we are inside an iframe.
+                return true;
+            }
+
+            if (isDefined(frameElement)) {
+                return (frameElement && String(frameElement.nodeName).toLowerCase() === 'iframe') ? true : false;
+            }
+
+            try {
+                return windowAlias.self !== windowAlias.top;
+            } catch (e2) {
+                return true;
+            }
         }
 
         /************************************************************
@@ -2190,7 +2818,7 @@ if (typeof Piwik !== 'object') {
                 configCustomUrl,
 
                 // Document title
-                configTitle = documentAlias.title,
+                configTitle = '',
 
                 // Extensions to be treated as download links
                 configDownloadExtensions = ['7z','aac','apk','arc','arj','asf','asx','avi','azw3','bin','csv','deb','dmg','doc','docx','epub','exe','flv','gif','gz','gzip','hqx','ibooks','jar','jpg','jpeg','js','mobi','mp2','mp3','mp4','mpg','mpeg','mov','movie','msi','msp','odb','odf','odg','ods','odt','ogg','ogv','pdf','phps','png','ppt','pptx','qt','qtm','ra','ram','rar','rpm','sea','sit','tar','tbz','tbz2','bz','bz2','tgz','torrent','txt','wav','wma','wmv','wpd','xls','xlsx','xml','z','zip'],
@@ -2242,7 +2870,7 @@ if (typeof Piwik !== 'object') {
                 // Default is user agent defined.
                 configCookiePath,
 
-                // Cookies are disabled
+                // First-party cookies are disabled
                 configCookiesDisabled = false,
 
                 // Do Not Track
@@ -2283,6 +2911,9 @@ if (typeof Piwik !== 'object') {
                 // Custom Variables, scope "event"
                 customVariablesEvent = {},
 
+                // Custom Dimensions (can be any scope)
+                customDimensions = {},
+
                 // Custom Variables names and values are each truncated before being sent in the request or recorded in the cookie
                 customVariableMaximumLength = 200,
 
@@ -2308,6 +2939,11 @@ if (typeof Piwik !== 'object') {
                 // Guard against installing the activity tracker more than once per Tracker instance
                 heartBeatSetUp = false,
 
+                // bool used to detect whether this browser window had focus at least once. So far we cannot really
+                // detect this 100% correct for an iframe so whenever Piwik is loaded inside an iframe we presume
+                // the window had focus at least once.
+                hadWindowFocusAtLeastOnce = isInsideAnIframe(),
+
                 // Timestamp of last tracker request sent to Piwik
                 lastTrackerRequestTime = null,
 
@@ -2323,6 +2959,13 @@ if (typeof Piwik !== 'object') {
 
                 // Domain hash value
                 domainHash;
+
+            // Document title
+            try {
+                configTitle = documentAlias.title;
+            } catch(e) {
+                configTitle = '';
+            }
 
             /*
              * Set cookie value
@@ -2411,10 +3054,145 @@ if (typeof Piwik !== 'object') {
                 return baseUrl + url;
             }
 
+            function isSameHost (hostName, alias) {
+                var offset;
+
+                hostName = String(hostName).toLowerCase();
+                alias = String(alias).toLowerCase();
+
+                if (hostName === alias) {
+                    return true;
+                }
+
+                if (alias.slice(0, 1) === '.') {
+                    if (hostName === alias.slice(1)) {
+                        return true;
+                    }
+
+                    offset = hostName.length - alias.length;
+
+                    if ((offset > 0) && (hostName.slice(offset) === alias)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            /*
+             * Extract pathname from URL. element.pathname is actually supported by pretty much all browsers including
+             * IE6 apart from some rare very old ones
+             */
+            function getPathName(url) {
+                var parser = document.createElement('a');
+                if (url.indexOf('//') !== 0 && url.indexOf('http') !== 0) {
+                    if (url.indexOf('*') === 0) {
+                        url = url.substr(1);
+                    }
+                    if (url.indexOf('.') === 0) {
+                        url = url.substr(1);
+                    }
+                    url = 'http://' + url;
+                }
+
+                parser.href = content.toAbsoluteUrl(url);
+
+                if (parser.pathname) {
+                    return parser.pathname;
+                }
+
+                return '';
+            }
+
+            function isSitePath (path, pathAlias)
+            {
+                if(!stringStartsWith(pathAlias, '/')) {
+                    pathAlias = '/' + pathAlias;
+                }
+
+                if(!stringStartsWith(path, '/')) {
+                    path = '/' + path;
+                }
+
+                var matchesAnyPath = (pathAlias === '/' || pathAlias === '/*');
+
+                if (matchesAnyPath) {
+                    return true;
+                }
+
+                if (path === pathAlias) {
+                    return true;
+                }
+
+                pathAlias = String(pathAlias).toLowerCase();
+                path = String(path).toLowerCase();
+
+                // wildcard path support
+                if(stringEndsWith(pathAlias, '*')) {
+                    // remove the final '*' before comparing
+                    pathAlias = pathAlias.slice(0, -1);
+
+                    // Note: this is almost duplicated from just few lines above
+                    matchesAnyPath = (!pathAlias || pathAlias === '/');
+
+                    if (matchesAnyPath) {
+                        return true;
+                    }
+
+                    if (path === pathAlias) {
+                        return true;
+                    }
+
+                    // wildcard match
+                    return path.indexOf(pathAlias) === 0;
+                }
+
+                // we need to append slashes so /foobarbaz won't match a site /foobar
+                if (!stringEndsWith(path, '/')) {
+                    path += '/';
+                }
+
+                if (!stringEndsWith(pathAlias, '/')) {
+                    pathAlias += '/';
+                }
+
+                return path.indexOf(pathAlias) === 0;
+            }
+
+            /**
+             * Whether the specified domain name and path belong to any of the alias domains (eg. set via setDomains).
+             *
+             * Note: this function is used to determine whether a click on a URL will be considered an "Outlink".
+             *
+             * @param host
+             * @param path
+             * @returns {boolean}
+             */
+            function isSiteHostPath(host, path)
+            {
+                var i,
+                    alias,
+                    configAlias,
+                    aliasHost,
+                    aliasPath;
+
+                for (i = 0; i < configHostsAlias.length; i++) {
+                    aliasHost = domainFixup(configHostsAlias[i]);
+                    aliasPath = getPathName(configHostsAlias[i]);
+
+                    if (isSameHost(host, aliasHost) && isSitePath(path, aliasPath)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
             /*
              * Is the host local? (i.e., not an outlink)
              */
             function isSiteHostName(hostName) {
+
                 var i,
                     alias,
                     offset;
@@ -2453,6 +3231,8 @@ if (typeof Piwik !== 'object') {
                     iterator = 0; // To avoid JSLint warning of empty block
                     if (typeof callback === 'function') { callback(); }
                 };
+                // make sure to actually load an image so callback gets invoked
+                request = request.replace("send_image=0","send_image=1");
                 image.src = configTrackerUrl + (configTrackerUrl.indexOf('?') < 0 ? '?' : '&') + request;
             }
 
@@ -2481,7 +3261,7 @@ if (typeof Piwik !== 'object') {
                         if (this.readyState === 4 && !(this.status >= 200 && this.status < 300) && fallbackToGet) {
                             getImage(request, callback);
                         } else {
-                            if (typeof callback === 'function') { callback(); }
+                            if (this.readyState === 4 && (typeof callback === 'function')) { callback(); }
                         }
                     };
 
@@ -2518,6 +3298,19 @@ if (typeof Piwik !== 'object') {
 
                 heartBeatTimeout = setTimeout(function heartBeat() {
                     heartBeatTimeout = null;
+
+                    if (!hadWindowFocusAtLeastOnce) {
+                        // if browser does not support .hasFocus (eg IE5), we assume that the window has focus.
+                        hadWindowFocusAtLeastOnce = (!documentAlias.hasFocus || documentAlias.hasFocus());
+                    }
+
+                    if (!hadWindowFocusAtLeastOnce) {
+                        // only send a ping if the tab actually had focus at least once. For example do not send a ping
+                        // if window was opened via "right click => open in new window" and never had focus see #9504
+                        heartBeatUp(configHeartBeatDelay);
+                        return;
+                    }
+
                     if (heartBeatPingIfActivityAlias()) {
                         return;
                     }
@@ -2543,6 +3336,8 @@ if (typeof Piwik !== 'object') {
             }
 
             function heartBeatOnFocus() {
+                hadWindowFocusAtLeastOnce = true;
+
                 // since it's possible for a user to come back to a tab after several hours or more, we try to send
                 // a ping if the page is active. (after the ping is sent, the heart beat timeout will be set)
                 if (heartBeatPingIfActivityAlias()) {
@@ -3066,8 +3861,8 @@ if (typeof Piwik !== 'object') {
 
                     if (currentReferrerHostName.length && // there is a referrer
                         //REMOVING THIS LINE BELOW! We want to track the referrer from the same domain name. -Trevor (July 27, 2015)
-                        //!isSiteHostName(currentReferrerHostName) && // domain is not the current domain
-			(!configConversionAttributionFirstReferrer || // attribute to last known referrer
+			//!isSiteHostName(currentReferrerHostName) && // domain is not the current domain
+                        (!configConversionAttributionFirstReferrer || // attribute to last known referrer
                         !originalReferrerHostName.length || // previously empty
                         isSiteHostName(originalReferrerHostName))) { // previously set but in current domain
                         referralUrl = configReferrerUrl;
@@ -3111,6 +3906,34 @@ if (typeof Piwik !== 'object') {
                 for (i in browserFeatures) {
                     if (Object.prototype.hasOwnProperty.call(browserFeatures, i)) {
                         request += '&' + i + '=' + browserFeatures[i];
+                    }
+                }
+
+                var customDimensionIdsAlreadyHandled = [];
+                if (customData) {
+                    for (i in customData) {
+                        if (Object.prototype.hasOwnProperty.call(customData, i) && /^dimension\d+$/.test(i)) {
+                            var index = i.replace('dimension', '');
+                            customDimensionIdsAlreadyHandled.push(parseInt(index, 10));
+                            customDimensionIdsAlreadyHandled.push(String(index));
+                            request += '&' + i + '=' + customData[i];
+                            delete customData[i];
+                        }
+                    }
+                }
+
+                if (customData && isObjectEmpty(customData)) {
+                    customData = null;
+                    // we deleted all keys from custom data
+                }
+
+                // custom dimensions
+                for (i in customDimensions) {
+                    if (Object.prototype.hasOwnProperty.call(customDimensions, i)) {
+                        var isNotSetYet = (-1 === indexOfArray(customDimensionIdsAlreadyHandled, i));
+                        if (isNotSetYet) {
+                            request += '&dimension' + i + '=' + customDimensions[i];
+                        }
                     }
                 }
 
@@ -3204,9 +4027,10 @@ if (typeof Piwik !== 'object') {
                     lastEcommerceOrderTs,
                     now = new Date(),
                     items = [],
-                    sku;
+                    sku,
+                    isEcommerceOrder = String(orderId).length;
 
-                if (String(orderId).length) {
+                if (isEcommerceOrder) {
                     request += '&ec_id=' + encodeWrapper(orderId);
                     // Record date of order in the visitor cookie
                     lastEcommerceOrderTs = Math.round(now.getTime() / 1000);
@@ -3262,6 +4086,10 @@ if (typeof Piwik !== 'object') {
                 }
                 request = getRequest(request, configCustomData, 'ecommerce', lastEcommerceOrderTs);
                 sendRequest(request, configTrackerPause);
+
+                if (isEcommerceOrder) {
+                    ecommerceItems = {};
+                }
             }
 
             function logEcommerceOrder(orderId, grandTotal, subTotal, tax, shipping, discount) {
@@ -3280,11 +4108,10 @@ if (typeof Piwik !== 'object') {
             /*
              * Log the page view / visit
              */
-            function logPageView(customTitle, customData) {
-                var now = new Date(),
-                    request = getRequest('action_name=' + encodeWrapper(titleFixup(customTitle || configTitle)), customData, 'log');
+            function logPageView(customTitle, customData, callback) {
+                var request = getRequest('action_name=' + encodeWrapper(titleFixup(customTitle || configTitle)), customData, 'log');
 
-                sendRequest(request, configTrackerPause);
+                sendRequest(request, configTrackerPause, callback);
             }
 
             /*
@@ -3376,17 +4203,19 @@ if (typeof Piwik !== 'object') {
                     return;
                 }
 
+                var originalSourcePath = sourceElement.pathname || getPathName(sourceElement.href);
+
                 // browsers, such as Safari, don't downcase hostname and href
                 var originalSourceHostName = sourceElement.hostname || getHostName(sourceElement.href);
                 var sourceHostName = originalSourceHostName.toLowerCase();
                 var sourceHref = sourceElement.href.replace(originalSourceHostName, sourceHostName);
 
                 // browsers, such as Safari, don't downcase hostname and href
-                var scriptProtocol = new RegExp('^(javascript|vbscript|jscript|mocha|livescript|ecmascript|mailto):', 'i');
+                var scriptProtocol = new RegExp('^(javascript|vbscript|jscript|mocha|livescript|ecmascript|mailto|tel):', 'i');
 
                 if (!scriptProtocol.test(sourceHref)) {
                     // track outlinks and all downloads
-                    var linkType = getLinkType(sourceElement.className, sourceHref, isSiteHostName(sourceHostName), query.hasNodeAttribute(sourceElement, 'download'));
+                    var linkType = getLinkType(sourceElement.className, sourceHref, isSiteHostPath(sourceHostName, originalSourcePath), query.hasNodeAttribute(sourceElement, 'download'));
 
                     if (linkType) {
                         return {
@@ -3703,7 +4532,9 @@ if (typeof Piwik !== 'object') {
                         'contentImpressions'
                     );
 
-                    requests.push(request);
+                    if (request) {
+                        requests.push(request);
+                    }
                 }
 
                 return requests;
@@ -3895,7 +4726,7 @@ if (typeof Piwik !== 'object') {
                 } else if (windowAlias.addEventListener) {
                     windowAlias.addEventListener('load', callback);
                 } else if (windowAlias.attachEvent) {
-                    windowAlias.attachEvent('onLoad', callback);
+                    windowAlias.attachEvent('onload', callback);
                 }
             }
 
@@ -3904,18 +4735,61 @@ if (typeof Piwik !== 'object') {
                 var loaded = false;
 
                 if (documentAlias.attachEvent) {
-                    loaded = documentAlias.readyState === "complete";
+                    loaded = documentAlias.readyState === 'complete';
                 } else {
-                    loaded = documentAlias.readyState !== "loading";
+                    loaded = documentAlias.readyState !== 'loading';
                 }
 
                 if (loaded) {
                     callback();
-                } else if (documentAlias.addEventListener) {
-                    documentAlias.addEventListener('DOMContentLoaded', callback);
-                } else if (documentAlias.attachEvent) {
-                    documentAlias.attachEvent('onreadystatechange', callback);
+                    return;
                 }
+
+                var _timer;
+
+                if (documentAlias.addEventListener) {
+                    addEventListener(documentAlias, 'DOMContentLoaded', function ready() {
+                        documentAlias.removeEventListener('DOMContentLoaded', ready, false);
+                        if (!loaded) {
+                            loaded = true;
+                            callback();
+                        }
+                    });
+                } else if (documentAlias.attachEvent) {
+                    documentAlias.attachEvent('onreadystatechange', function ready() {
+                        if (documentAlias.readyState === 'complete') {
+                            documentAlias.detachEvent('onreadystatechange', ready);
+                            if (!loaded) {
+                                loaded = true;
+                                callback();
+                            }
+                        }
+                    });
+
+                    if (documentAlias.documentElement.doScroll && windowAlias === windowAlias.top) {
+                        (function ready() {
+                            if (!loaded) {
+                                try {
+                                    documentAlias.documentElement.doScroll('left');
+                                } catch (error) {
+                                    setTimeout(ready, 0);
+
+                                    return;
+                                }
+                                loaded = true;
+                                callback();
+                            }
+                        }());
+                    }
+                }
+
+                // fallback
+                addEventListener(windowAlias, 'load', function () {
+                    if (!loaded) {
+                        loaded = true;
+                        callback();
+                    }
+                }, false);
             }
 
             /*
@@ -4175,8 +5049,7 @@ if (typeof Piwik !== 'object') {
                         java: 'application/x-java-vm',
                         gears: 'application/x-googlegears',
                         ag: 'application/x-silverlight'
-                    },
-                    devicePixelRatio = windowAlias.devicePixelRatio || 1;
+                    };
 
                 // detect browser features except IE < 11 (IE 11 user agent is no longer MSIE)
                 if (!((new RegExp('MSIE')).test(navigatorAlias.userAgent))) {
@@ -4207,8 +5080,9 @@ if (typeof Piwik !== 'object') {
                     browserFeatures.cookie = hasCookies();
                 }
 
-                // screen resolution
-                browserFeatures.res = screenAlias.width * devicePixelRatio + 'x' + screenAlias.height * devicePixelRatio;
+                var width = parseInt(screenAlias.width, 10);
+                var height = parseInt(screenAlias.height, 10);
+                browserFeatures.res = parseInt(width, 10) + 'x' + parseInt(height, 10);
             }
 
 /*<DEBUG>*/
@@ -4289,6 +5163,12 @@ if (typeof Piwik !== 'object') {
                 internalIsNodeVisible: isVisible,
                 isNodeAuthorizedToTriggerInteraction: isNodeAuthorizedToTriggerInteraction,
                 replaceHrefIfInternalLink: replaceHrefIfInternalLink,
+                getDomains: function () {
+                    return configHostsAlias;
+                },
+                getConfigCookiePath: function () {
+                    return configCookiePath;
+                },
                 getConfigDownloadExtensions: function () {
                     return configDownloadExtensions;
                 },
@@ -4310,6 +5190,10 @@ if (typeof Piwik !== 'object') {
                 },
                 getConfigVisitorCookieTimeout: function () {
                     return configVisitorCookieTimeout;
+                },
+                removeAllAsyncTrackersButFirst: function () {
+                    var firstTracker = asyncTrackers[0];
+                    asyncTrackers = [firstTracker];
                 },
                 getRemainingVisitorCookieTimeout: getRemainingVisitorCookieTimeout,
 /*</DEBUG>*/
@@ -4404,6 +5288,29 @@ if (typeof Piwik !== 'object') {
                     return configTrackerUrl;
                 },
 
+                /**
+                 * Adds a new tracker. All sent requests will be also sent to the given siteId and piwikUrl.
+                 * If piwikUrl is not set, current url will be used.
+                 *
+                 * @param null|string piwikUrl  If null, will reuse the same tracker URL of the current tracker instance
+                 * @param int|string siteId
+                 * @return Tracker
+                 */
+                addTracker: function (piwikUrl, siteId) {
+                    if (!siteId) {
+                        throw new Error('A siteId must be given to add a new tracker');
+                    }
+
+                    if (!isDefined(piwikUrl) || null === piwikUrl) {
+                        piwikUrl = this.getTrackerUrl();
+                    }
+
+                    var tracker = new Tracker(piwikUrl, siteId);
+
+                    asyncTrackers.push(tracker);
+
+                    return tracker;
+                },
 
                 /**
                  * Returns the site ID
@@ -4529,6 +5436,50 @@ if (typeof Piwik !== 'object') {
                 },
 
                 /**
+                 * Set Custom Dimensions. Set Custom Dimensions will not be cleared after a tracked pageview and will
+                 * be sent along all following tracking requests. It is possible to remove/clear a value via `deleteCustomDimension`.
+                 *
+                 * @param int index A Custom Dimension index
+                 * @param string value
+                 */
+                setCustomDimension: function (customDimensionId, value) {
+                    customDimensionId = parseInt(customDimensionId, 10);
+                    if (customDimensionId > 0) {
+                        if (!isDefined(value)) {
+                            value = '';
+                        }
+                        if (!isString(value)) {
+                            value = String(value);
+                        }
+                        customDimensions[customDimensionId] = value;
+                    }
+                },
+
+                /**
+                 * Get a stored value for a specific Custom Dimension index.
+                 *
+                 * @param int index A Custom Dimension index
+                 */
+                getCustomDimension: function (customDimensionId) {
+                    customDimensionId = parseInt(customDimensionId, 10);
+                    if (customDimensionId > 0 && Object.prototype.hasOwnProperty.call(customDimensions, customDimensionId)) {
+                        return customDimensions[customDimensionId];
+                    }
+                },
+
+                /**
+                 * Delete a custom dimension.
+                 *
+                 * @param int index Custom dimension Id
+                 */
+                deleteCustomDimension: function (customDimensionId) {
+                    customDimensionId = parseInt(customDimensionId, 10);
+                    if (customDimensionId > 0) {
+                        delete customDimensions[customDimensionId];
+                    }
+                },
+
+                /**
                  * Set custom variable within this visit
                  *
                  * @param int index Custom variable slot ID from 1-5
@@ -4601,6 +5552,7 @@ if (typeof Piwik !== 'object') {
                  * Delete custom variable
                  *
                  * @param int index Custom variable slot ID from 1-5
+                 * @param string scope
                  */
                 deleteCustomVariable: function (index, scope) {
                     // Only delete if it was there already
@@ -4674,13 +5626,53 @@ if (typeof Piwik !== 'object') {
                 },
 
                 /**
-                 * Set array of domains to be treated as local
+                 * Set array of domains to be treated as local. Also supports path, eg '.piwik.org/subsite1'. In this
+                 * case all links that don't go to '*.piwik.org/subsite1/ *' would be treated as outlinks.
+                 * For example a link to 'piwik.org/' or 'piwik.org/subsite2' both would be treated as outlinks.
+                 *
+                 * Also supports page wildcard, eg 'piwik.org/index*'. In this case all links
+                 * that don't go to piwik.org/index* would be treated as outlinks.
+                 *
+                 * The current domain will be added automatically if no given host alias contains a path and if no host
+                 * alias is already given for the current host alias. Say you are on "example.org" and set
+                 * "hostAlias = ['example.com', 'example.org/test']" then the current "example.org" domain will not be
+                 * added as there is already a more restrictive hostAlias 'example.org/test' given. We also do not add
+                 * it automatically if there was any other host specifying any path like
+                 * "['example.com', 'example2.com/test']". In this case we would also not add the current
+                 * domain "example.org" automatically as the "path" feature is used. As soon as someone uses the path
+                 * feature, for Piwik JS Tracker to work correctly in all cases, one needs to specify all hosts
+                 * manually.
                  *
                  * @param string|array hostsAlias
                  */
                 setDomains: function (hostsAlias) {
                     configHostsAlias = isString(hostsAlias) ? [hostsAlias] : hostsAlias;
-                    configHostsAlias.push(domainAlias);
+
+                    var hasDomainAliasAlready = false, i = 0, alias;
+                    for (i; i < configHostsAlias.length; i++) {
+                        alias = String(configHostsAlias[i]);
+
+                        if (isSameHost(domainAlias, domainFixup(alias))) {
+                            hasDomainAliasAlready = true;
+                            break;
+                        }
+
+                        var pathName = getPathName(alias);
+                        if (pathName && pathName !== '/' && pathName !== '/*') {
+                            hasDomainAliasAlready = true;
+                            break;
+                        }
+                    }
+
+                    // The current domain will be added automatically if no given host alias contains a path
+                    // and if no host alias is already given for the current host alias.
+                    if (!hasDomainAliasAlready) {
+                        /**
+                         * eg if domainAlias = 'piwik.org' and someone set hostsAlias = ['piwik.org/foo'] then we should
+                         * not add piwik.org as it would increase the allowed scope.
+                         */
+                        configHostsAlias.push(domainAlias);
+                    }
                 },
 
                 /**
@@ -4845,7 +5837,7 @@ if (typeof Piwik !== 'object') {
 
                 /**
                  * Set session cookie timeout (in seconds).
-                 * Defaults to 30 minutes (timeout=1800000)
+                 * Defaults to 30 minutes (timeout=1800)
                  *
                  * @param int timeout
                  */
@@ -4947,15 +5939,11 @@ if (typeof Piwik !== 'object') {
                 enableLinkTracking: function (enable) {
                     linkTrackingEnabled = true;
 
-                    if (hasLoaded) {
-                        // the load event has already fired, add the click listeners now
-                        addClickListeners(enable);
-                    } else {
-                        // defer until page has loaded
-                        registeredOnLoadHandlers.push(function () {
+                    trackCallback(function () {
+                        trackCallbackOnReady(function () {
                             addClickListeners(enable);
                         });
-                    }
+                    });
                 },
 
                 /**
@@ -5109,8 +6097,9 @@ if (typeof Piwik !== 'object') {
                  *
                  * @param string customTitle
                  * @param mixed customData
+                 * @param function callback
                  */
-                trackPageView: function (customTitle, customData) {
+                trackPageView: function (customTitle, customData, callback) {
                     trackedContentImpressions = [];
 
                     if (isOverlaySession(configTrackerSiteId)) {
@@ -5119,7 +6108,7 @@ if (typeof Piwik !== 'object') {
                         });
                     } else {
                         trackCallback(function () {
-                            logPageView(customTitle, customData);
+                            logPageView(customTitle, customData, callback);
                         });
                     }
                 },
@@ -5320,16 +6309,31 @@ if (typeof Piwik !== 'object') {
                 },
 
                 /**
+                 * Useful to debug content tracking. This method will log all detected content blocks to console
+                 * (if the browser supports the console). It will list the detected name, piece, and target of each
+                 * content block.
+                 */
+                logAllContentBlocksOnPage: function () {
+                    var contentNodes = content.findContentNodes();
+                    var contents = content.collectContent(contentNodes);
+
+                    if (console !== undefined && console && console.log) {
+                        console.log(contents);
+                    }
+                },
+
+                /**
                  * Records an event
                  *
                  * @param string category The Event Category (Videos, Music, Games...)
                  * @param string action The Event's Action (Play, Pause, Duration, Add Playlist, Downloaded, Clicked...)
                  * @param string name (optional) The Event's object Name (a particular Movie name, or Song name, or File name...)
                  * @param float value (optional) The Event's value
+                 * @param mixed customData
                  */
-                trackEvent: function (category, action, name, value) {
+                trackEvent: function (category, action, name, value, customData) {
                     trackCallback(function () {
-                        logEvent(category, action, name, value);
+                        logEvent(category, action, name, value, customData);
                     });
                 },
 
@@ -5339,10 +6343,11 @@ if (typeof Piwik !== 'object') {
                  * @param string keyword
                  * @param string category
                  * @param int resultsCount
+                 * @param mixed customData
                  */
-                trackSiteSearch: function (keyword, category, resultsCount) {
+                trackSiteSearch: function (keyword, category, resultsCount, customData) {
                     trackCallback(function () {
-                        logSiteSearch(keyword, category, resultsCount);
+                        logSiteSearch(keyword, category, resultsCount, customData);
                     });
                 },
 
@@ -5396,6 +6401,7 @@ if (typeof Piwik !== 'object') {
                  * Adds an item (product) that is in the current Cart or in the Ecommerce order.
                  * This function is called for every item (product) in the Cart or the Order.
                  * The only required parameter is sku.
+                 * The items are deleted from this JavaScript object when the Ecommerce order is tracked via the method trackEcommerceOrder.
                  *
                  * @param string sku (required) Item's SKU Code. This is the unique identifier for the product.
                  * @param string name (optional) Item's name
@@ -5414,6 +6420,7 @@ if (typeof Piwik !== 'object') {
                  * If the Ecommerce order contains items (products), you must call first the addEcommerceItem() for each item in the order.
                  * All revenues (grandTotal, subTotal, tax, shipping, discount) will be individually summed and reported in Piwik reports.
                  * Parameters orderId and grandTotal are required. For others, you can set to false if you don't need to specify them.
+                 * After calling this method, items added to the cart will be removed from this JavaScript object.
                  *
                  * @param string|int orderId (required) Unique Order ID.
                  *                   This will be used to count this order only once in the event the order page is reloaded several times.
@@ -5432,6 +6439,7 @@ if (typeof Piwik !== 'object') {
                  * Tracks a Cart Update (add item, remove item, update item).
                  * On every Cart update, you must call addEcommerceItem() for each item (product) in the cart, including the items that haven't been updated since the last cart update.
                  * Then you can call this function with the Cart grandTotal (typically the sum of all items' prices)
+                 * Calling this method does not remove from this JavaScript object the items that were added to the cart via addEcommerceItem
                  *
                  * @param float grandTotal (required) Items (products) amount in the Cart
                  */
@@ -5480,9 +6488,7 @@ if (typeof Piwik !== 'object') {
                             delete paq[iterator];
 
                             if (appliedMethods[methodName] > 1) {
-                                if (console !== undefined && console && console.error) {
-                                    console.error('The method ' + methodName + ' is registered more than once in "paq" variable. Only the last call has an effect. Please have a look at the multiple Piwik trackers documentation: http://developer.piwik.org/guides/tracking-javascript-guide#multiple-piwik-trackers');
-                                }
+                                logConsoleError('The method ' + methodName + ' is registered more than once in "_paq" variable. Only the last call has an effect. Please have a look at the multiple Piwik trackers documentation: http://developer.piwik.org/guides/tracking-javascript-guide#multiple-piwik-trackers');
                             }
 
                             appliedMethods[methodName]++;
@@ -5500,13 +6506,12 @@ if (typeof Piwik !== 'object') {
 
         // initialize the Piwik singleton
         addEventListener(windowAlias, 'beforeunload', beforeUnloadHandler, false);
-        addReadyListener();
 
         Date.prototype.getTimeAlias = Date.prototype.getTime;
 
-        asyncTracker = new Tracker();
+        asyncTrackers.push(new Tracker());
 
-        var applyFirst  = ['disableCookies', 'setTrackerUrl', 'setAPIUrl', 'setCookiePath', 'setCookieDomain', 'setUserId', 'setSiteId', 'enableLinkTracking'];
+        var applyFirst  = ['addTracker', 'disableCookies', 'setTrackerUrl', 'setAPIUrl', 'setCookiePath', 'setCookieDomain', 'setDomains', 'setUserId', 'setSiteId', 'enableLinkTracking'];
         _paq = applyMethodsInOrder(_paq, applyFirst);
 
         // apply the queue of actions
@@ -5542,22 +6547,57 @@ if (typeof Piwik !== 'object') {
              * @return Tracker
              */
             getTracker: function (piwikUrl, siteId) {
-                if(!isDefined(siteId)) {
+                if (!isDefined(siteId)) {
                     siteId = this.getAsyncTracker().getSiteId();
                 }
-                if(!isDefined(piwikUrl)) {
+                if (!isDefined(piwikUrl)) {
                     piwikUrl = this.getAsyncTracker().getTrackerUrl();
                 }
+
                 return new Tracker(piwikUrl, siteId);
             },
 
             /**
-             * Get internal asynchronous tracker object
+             * Get internal asynchronous tracker object.
              *
+             * If no parameters are given, it returns the internal asynchronous tracker object. If a piwikUrl and idSite
+             * is given, it will try to find an optional
+             *
+             * @param string piwikUrl
+             * @param int|string siteId
              * @return Tracker
              */
-            getAsyncTracker: function () {
-                return asyncTracker;
+            getAsyncTracker: function (piwikUrl, siteId) {
+
+                var firstTracker;
+                if (asyncTrackers && asyncTrackers[0]) {
+                    firstTracker = asyncTrackers[0];
+                }
+
+                if (!siteId && !piwikUrl) {
+                    // for BC and by default we just return the initally created tracker
+                    return firstTracker;
+                }
+
+                // we look for another tracker created via `addTracker` method
+                if ((!isDefined(siteId) || null === siteId) && firstTracker) {
+                    siteId = firstTracker.getSiteId();
+                }
+
+                if ((!isDefined(piwikUrl) || null === piwikUrl) && firstTracker) {
+                    piwikUrl = firstTracker.getTrackerUrl();
+                }
+
+                var tracker, i = 0;
+                for (i; i < asyncTrackers.length; i++) {
+                    tracker = asyncTrackers[i];
+                    if (tracker
+                        && String(tracker.getSiteId()) === String(siteId)
+                        && tracker.getTrackerUrl() === piwikUrl) {
+
+                        return tracker;
+                    }
+                }
             }
         };
 
@@ -5578,7 +6618,7 @@ if (window && window.piwikAsyncInit) {
 (function () {
     var jsTrackerType = (typeof AnalyticsTracker);
     if (jsTrackerType === 'undefined') {
-        AnalyticsTracker = Piwik;
+        AnalyticsTracker = window.Piwik;
     }
 }());
 /*jslint sloppy: false */
@@ -5610,7 +6650,9 @@ if (typeof piwik_log !== 'function') {
 
         function getOption(optionName) {
             try {
-                return eval('piwik_' + optionName);
+                if (window['piwik_' + optionName]) {
+                    return window['piwik_' + optionName];
+                }
             } catch (ignore) { }
 
             return; // undefined
@@ -5618,7 +6660,7 @@ if (typeof piwik_log !== 'function') {
 
         // instantiate the tracker
         var option,
-            piwikTracker = Piwik.getTracker(piwikUrl, siteId);
+            piwikTracker = window.Piwik.getTracker(piwikUrl, siteId);
 
         // initialize tracker
         piwikTracker.setDocumentTitle(documentTitle);

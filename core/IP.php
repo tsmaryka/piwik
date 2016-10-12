@@ -38,7 +38,7 @@ use Piwik\Network\IPUtils;
 class IP
 {
     /**
-     * Returns the most accurate IP address availble for the current user, in
+     * Returns the most accurate IP address available for the current user, in
      * IPv4 format. This could be the proxy client's IP address.
      *
      * @return string IP address in presentation format.
@@ -101,7 +101,7 @@ class IP
      *
      * @param string $csv Comma separated list of elements.
      * @param array $excludedIps Optional list of excluded IP addresses (or IP address ranges).
-     * @return string Last (non-excluded) IP address in the list.
+     * @return string Last (non-excluded) IP address in the list or an empty string if all given IPs are excluded.
      */
     public static function getLastIpFromList($csv, $excludedIps = null)
     {
@@ -115,6 +115,8 @@ class IP
                     return $element;
                 }
             }
+
+            return '';
         }
         return trim(Common::sanitizeInputValue($csv));
     }

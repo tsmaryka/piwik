@@ -48,7 +48,8 @@
                 specialMetricsColorScale = colorManager.getColors(
                     'visitor-map',
                     ['special-metrics-color-scale-1', 'special-metrics-color-scale-2', 'special-metrics-color-scale-3',
-                     'special-metrics-color-scale-4']
+                     'special-metrics-color-scale-4'],
+                    true
                 ),
                 countryHighlightColor = colors['country-highlight-color'],
                 countrySelectedColor = colors['country-selected-color'],
@@ -139,11 +140,34 @@
                 };
             }
 
-            function formatNumber(v) {
+            function formatNumber(v, metric, first) {
                 v = Number(v);
-                return v > 1000000 ? (v / 1000000).toFixed(1) + 'm' :
-                    v > 1000 ? (v / 1000).toFixed(1) + 'k' :
-                        v;
+
+                if (v > 1000000) {
+                    return (v / 1000000).toFixed(1) + 'm';
+                }
+
+                if (v > 1000) {
+                    return (v / 1000).toFixed(1) + 'k';
+                }
+
+                if (!metric) {
+                    return v;
+                }
+
+                if (metric == 'avg_time_on_site') {
+                    v += first ? ' sec' : 's';
+                } else if (metric == 'bounce_rate') {
+                    v += '%';
+                } else if (metric === 'nb_actions_per_visit') {
+                    if (parseInt(v, 10) === v) {
+                        return v;
+                    }
+
+                    return v.toFixed(1);
+                }
+
+                return v;
             }
 
             //
@@ -156,11 +180,13 @@
 
                 var val = data[metric] % 1 === 0 || Number(data[metric]) != data[metric] ? data[metric] : data[metric].toFixed(1);
                 if (metric == 'bounce_rate') {
-                    val += '%';
+                    val = NumberFormatter.formatPercent(val);
                 } else if (metric == 'avg_time_on_site') {
                     val = new Date(0, 0, 0, val / 3600, val % 3600 / 60, val % 60)
                         .toTimeString()
                         .replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
+                } else {
+                    val = NumberFormatter.formatNumber(val);
                 }
 
                 var v = _[metric].replace('%s', '<strong>' + val + '</strong>');
@@ -195,13 +221,7 @@
                 function addLegendItem(val, first) {
                     var d = $('<div>'), r = $('<div>'), l = $('<div>'),
                         metric = $$('.userCountryMapSelectMetrics').val(),
-                        v = formatNumber(Math.round(val));
-
-                    if (metric == 'avg_time_on_site') {
-                        v += first ? ' sec' : 's';
-                    } else if (metric == 'bounce_rate') {
-                        v += '%';
-                    }
+                        v = formatNumber(Math.round(val), metric, first);
 
                     d.css({ width: 17, height: 17, float: 'left', background: colscale(val) });
                     l.css({ 'margin-left': 20, 'line-height': '20px', 'text-align': 'right' }).html(v);
@@ -243,7 +263,7 @@
                     if (id.length == 3) {
                         c = (stats.p90 - stats.min) / (stats.max - stats.min);
                         colscale = chroma.scale(specialMetricsColorScale, [0, c, c + 0.001, 1])
-                            .domain(chroma.limits(rows, 'c', 5, 'curMetric', filter))
+                            .domain(chroma.limits(rows, 'c', 5, 'curMetric', filter), 4, 'c')
                             .mode('hsl');
                     }
                 }
@@ -266,8 +286,10 @@
             }
 
             function formatPercentage(val) {
-                if (val < 0.001) return '< 0.1%';
-                return Math.round(1000 * val) / 10 + '%';
+                if (val < 0.001) {
+                    return '< ' + NumberFormatter.formatPercent(0.1);
+                }
+                return NumberFormatter.formatPercent(Math.round(1000 * val) / 10);
             }
 
             /*
@@ -460,7 +482,7 @@
                     $('.map-stats').html(formatValueForTooltips(UserCountryMap.countriesByIso[id], metric, 'world'));
                 } else {
                     $('.map-stats').html(
-                        _.nb_visits.replace('%s', '<strong>' + formatNumber(totalVisits) + '</strong>') + (id != 'world' ? ' (' +
+                        _.nb_visits.replace('%s', '<strong>' + formatNumber(totalVisits, metric) + '</strong>') + (id != 'world' ? ' (' +
                             formatPercentage(totalVisits / worldTotalVisits) + ')' : '')
                     );
                 }
@@ -536,7 +558,14 @@
                             return UserCountryMap.countriesByIso[pd.iso] === undefined;
                         },
                         tooltips: function (pd) {
-                            return '<h3>' + pd.name + '</h3>' + _.no_visit;
+                            var countryName = pd.name;
+                            for (var iso in self.config.countryNames) {
+                                if (UserCountryMap.ISO2toISO3[iso.toUpperCase()] == pd.iso) {
+                                    countryName = self.config.countryNames[iso];
+                                    break;
+                                }
+                            }
+                            return '<h3>' + countryName + '</h3>' + _.no_visit;
                         }
                     });
 
@@ -876,11 +905,10 @@
                             $.each(cities, function (i, city) {
                                 sumArea += isNaN(city.curMetric) ? 0 : Math.pow(radscale(city.curMetric), 2);
                             });
+
                             maxRad = Math.sqrt(area * f[metric] / sumArea);
 
                             radscale = $K.scale.sqrt(cities.concat({ curMetric: 0 }), 'curMetric').range([2, maxRad + 2]);
-
-                            var is_rate = metric.substr(0, 3) != 'nb_' || metric == 'nb_actions_per_visit';
 
                             var citySymbols = map.addSymbols({
                                 type: $K.LabeledBubble,
@@ -891,7 +919,26 @@
                                     tolerance: 0
                                 },
                                 title: function (d) {
-                                    return radscale(d.curMetric) > 10 ? formatNumber(d.curMetric) : '';
+                                    var v = d.curMetric;
+                                    if (isNaN(v)) {
+                                        return '';
+                                    }
+
+                                    if (metric === 'bounce_rate') {
+                                        v = Number((''+ v).replace('%', ''));
+                                    } else if (metric === 'avg_time_on_site') {
+                                        v = Number(v);
+                                    }
+
+                                    if (isNaN(v)) {
+                                        return '';
+                                    }
+
+                                    if (radscale(v) > 10) {
+                                        return formatNumber(d.curMetric, metric);
+                                    }
+
+                                    return '';
                                 },
                                 labelattrs: {
                                     fill: cityLabelColor,
@@ -901,7 +948,7 @@
                                 },
                                 filter: function (d) {
                                     if (isNaN(d.lat) || isNaN(d.long)) return false;
-                                    return is_rate ? d.nb_visits > 5 && d.curMetric : d.curMetric;
+                                    return !!d.curMetric && d.curMetric !== '0';
                                 },
                                 aggregate: function (rows) {
                                     var row = aggregate(rows);
@@ -916,14 +963,24 @@
                                 },
                                 sortBy: 'radius desc',
                                 location: function (city) { return [city.long, city.lat]; },
-                                radius: function (city) { return radscale(city.curMetric); },
+                                radius: function (city) {
+                                    var scale = radscale(city.curMetric);
+                                    if (isNaN(scale)) {
+                                        return 0.01;
+                                    }
+                                    return scale;
+                                },
                                 tooltip: function (city) {
                                     return '<h3>' + city.city_name + '</h3>' +
                                         formatValueForTooltips(city, metric, iso);
                                 },
                                 attrs: function (city) {
+                                    var color = colscale(city.curMetric);
+                                    if (color && color.hex) {
+                                        color = color.hex();
+                                    }
                                     return {
-                                        fill: colscale(city.curMetric).hex(),
+                                        fill: color,
                                         'fill-opacity': 0.7,
                                         stroke: cityStrokeColor,
                                         cursor: 'pointer'
@@ -1245,12 +1302,18 @@
          */
         resize: function () {
             var ratio, w, h,
-                map = this.map,
-                maxHeight = $(window).height() - (this.theWidget && this.theWidget.isMaximised ? 150 : 79);
+                map = this.map;
+
             ratio = map.viewAB.width / map.viewAB.height;
             w = map.container.width();
             h = w / ratio;
-            h = Math.min(maxHeight, h);
+
+            // special handling for widgetize mode
+            if (!this.theWidget && map.container.parents('.widget').length) {
+                var maxHeight = $(window).height() - ($('html').height() - map.container.height());
+                h = Math.min(maxHeight, h);
+            }
+
             map.container.height(h - 2);
             map.resize(w, h);
 

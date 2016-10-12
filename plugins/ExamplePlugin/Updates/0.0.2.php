@@ -7,16 +7,16 @@
  *
  */
 
-namespace Piwik\Plugins\ExamplePlugin;
+namespace Piwik\Plugins\ExamplePlugin\Updates;
 
 use Piwik\Common;
 use Piwik\Updater;
-use Piwik\Updates;
+use Piwik\Updates as PiwikUpdates;
 
 /**
  * Update for version 0.0.2.
  */
-class Updates_0_0_2 extends Updates
+class Updates_0_0_2 extends PiwikUpdates
 {
 
     /**
@@ -49,7 +49,7 @@ class Updates_0_0_2 extends Updates
     /**
      * Perform the incremental version update.
      *
-     * This method should preform all updating logic. If you define queries in an overridden `getMigrationQueries()`
+     * This method should perform all updating logic. If you define queries in an overridden `getMigrationQueries()`
      * method, you must call {@link Updater::executeMigrationQueries()} here.
      *
      * See {@link Updates} for an example.

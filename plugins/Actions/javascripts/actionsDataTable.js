@@ -59,7 +59,7 @@
                 rows = $('tr', domElem);
             }
 
-            // we dont display the link on the row with subDataTable when we are already
+            // we don't display the link on the row with subDataTable when we are already
             // printing all the subTables (case of recursive search when the content is
             // including recursively all the subtables
             if (!self.param.filter_pattern_recursive) {
@@ -318,7 +318,12 @@
 
             $('tr#' + idToReplace, root).after(response).remove();
 
-            var missingColumns = (response.prev().find('td').size() - response.find('td').size());
+            var requiredColumnCount = 0, availableColumnCount = 0;
+
+            response.prev().find('td').each(function(){ requiredColumnCount += $(this).attr('colspan') || 1; });
+            response.find('td').each(function(){ availableColumnCount += $(this).attr('colspan') || 1; });
+
+            var missingColumns = requiredColumnCount - availableColumnCount;
             for (var i = 0; i < missingColumns; i++) {
                 // if the subtable has fewer columns than the parent table, add some columns.
                 // this happens for example, when the parent table has performance metrics and the subtable doesn't.

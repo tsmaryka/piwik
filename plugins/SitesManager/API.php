@@ -263,6 +263,7 @@ class API extends \Piwik\Plugin\API
      *
      * @param bool|int $timestamp
      * @return array The list of website IDs
+     * @deprecated since 2.15 This method will be removed in Piwik 3.0, there is no replacement.
      */
     public function getSitesIdWithVisits($timestamp = false)
     {
@@ -329,7 +330,7 @@ class API extends \Piwik\Plugin\API
      * For the superUser it returns all the websites in the database.
      *
      * @param bool|int $limit Specify max number of sites to return
-     * @param bool $_restrictSitesToLogin Hack necessary when runnning scheduled tasks, where "Super User" is forced, but sometimes not desired, see #3017
+     * @param bool $_restrictSitesToLogin Hack necessary when running scheduled tasks, where "Super User" is forced, but sometimes not desired, see #3017
      * @return array array for each site, an array of information (idsite, name, main_url, etc.)
      */
     public function getSitesWithAtLeastViewAccess($limit = false, $_restrictSitesToLogin = false)
@@ -490,6 +491,7 @@ class API extends \Piwik\Plugin\API
      * @param array|string $urls The URLs array must contain at least one URL called the 'main_url' ;
      *                        if several URLs are provided in the array, they will be recorded
      *                        as Alias URLs for this website.
+     *                        When calling API via HTTP specify multiple URLs via `&urls[]=http...&urls[]=http...`.
      * @param int $ecommerce Is Ecommerce Reporting enabled for this website?
      * @param null $siteSearch
      * @param string $searchKeywordParameters Comma separated list of search keyword parameter names
@@ -584,7 +586,7 @@ class API extends \Piwik\Plugin\API
         }
 
         if (!empty($settings)) {
-            $this->validateMeasurableSettings($bind['type'], $settings);
+            $this->validateMeasurableSettings(0, $bind['type'], $settings);
         }
 
         $idSite = $this->getModel()->createSite($bind);
@@ -610,9 +612,9 @@ class API extends \Piwik\Plugin\API
         return (int) $idSite;
     }
 
-    private function validateMeasurableSettings($idType, $settings)
+    private function validateMeasurableSettings($idSite, $idType, $settings)
     {
-        $measurableSettings = new MeasurableSettings(0, $idType);
+        $measurableSettings = new MeasurableSettings($idSite, $idType);
 
         foreach ($measurableSettings->getSettingsForCurrentUser() as $measurableSetting) {
             $name = $measurableSetting->getName();
@@ -644,11 +646,14 @@ class API extends \Piwik\Plugin\API
     {
         Site::clearCache();
         Cache::regenerateCacheWebsiteAttributes($idSite);
+        Cache::clearCacheGeneral();
         SiteUrls::clearSitesCache();
     }
 
     /**
-     * Delete a website from the database, given its Id.
+     * Delete a website from the database, given its Id. The method deletes the actual site as well as some associated
+     * data. However, it does not delete any logs or archives that belong to this website. You can delete logs and
+     * archives for a site manually as described in this FAQ: http://piwik.org/faq/how-to/faq_73/ .
      *
      * Requires Super User access.
      *
@@ -765,7 +770,7 @@ class API extends \Piwik\Plugin\API
      * they won't be duplicated. The 'main_url' of the website won't be affected by this method.
      *
      * @param int $idSite
-     * @param array|string $urls
+     * @param array|string $urls When calling API via HTTP specify multiple URLs via `&urls[]=http...&urls[]=http...`.
      * @return int the number of inserted URLs
      */
     public function addSiteAliasUrls($idSite, $urls)
@@ -1075,6 +1080,7 @@ class API extends \Piwik\Plugin\API
      * @param int $idSite website ID defining the website to edit
      * @param string $siteName website name
      * @param string|array $urls the website URLs
+     *                           When calling API via HTTP specify multiple URLs via `&urls[]=http...&urls[]=http...`.
      * @param int $ecommerce Whether Ecommerce is enabled, 0 or 1
      * @param null|int $siteSearch Whether site search is enabled, 0 or 1
      * @param string $searchKeywordParameters Comma separated list of search keyword parameter names
@@ -1183,7 +1189,7 @@ class API extends \Piwik\Plugin\API
         }
 
         if (!empty($settings)) {
-            $this->validateMeasurableSettings(Site::getTypeFor($idSite), $settings);
+            $this->validateMeasurableSettings($idSite, Site::getTypeFor($idSite), $settings);
         }
 
         $this->getModel()->updateSite($bind, $idSite);
@@ -1206,7 +1212,7 @@ class API extends \Piwik\Plugin\API
      * Updates the field ts_created for the specified websites.
      *
      * @param $idSites int Id Site to update ts_created
-     * @param $minDate Date to set as creation date. To play it safe it will substract one more day.
+     * @param $minDate Date to set as creation date. To play it safe it will subtract one more day.
      *
      * @ignore
      */
@@ -1241,7 +1247,7 @@ class API extends \Piwik\Plugin\API
      */
     public function getCurrencyList()
     {
-        $currencies = Formatter::getCurrencyList();
+        $currencies = Site::getCurrencyList();
         return array_map(function ($a) {
             return $a[1] . " (" . $a[0] . ")";
         }, $currencies);
@@ -1254,7 +1260,7 @@ class API extends \Piwik\Plugin\API
      */
     public function getCurrencySymbols()
     {
-        $currencies = Formatter::getCurrencyList();
+        $currencies = Site::getCurrencyList();
         return array_map(function ($a) {
             return $a[0];
         }, $currencies);
@@ -1482,7 +1488,10 @@ class API extends \Piwik\Plugin\API
 
         foreach ($urls as &$url) {
             $url = $this->removeTrailingSlash($url);
-            if (strpos($url, 'http') !== 0) {
+            $scheme = parse_url($url, PHP_URL_SCHEME);
+            if (empty($scheme)
+                && strpos($url, '://') === false
+            ) {
                 $url = 'http://' . $url;
             }
             $url = trim($url);

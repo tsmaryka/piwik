@@ -21,39 +21,21 @@ require_once PIWIK_INCLUDE_PATH . '/plugins/CoreVisualizations/JqplotDataGenerat
 class CoreVisualizations extends \Piwik\Plugin
 {
     /**
-     * @see Piwik\Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
             'AssetManager.getStylesheetFiles'        => 'getStylesheetFiles',
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
             'Translate.getClientSideTranslationKeys' => 'getClientSideTranslationKeys',
-            'UsersManager.deleteUser'                => 'deleteUser',
-            'ViewDataTable.addViewDataTable'         => 'addViewDataTable'
+            'UsersManager.deleteUser'                => 'deleteUser'
         );
     }
 
     public function deleteUser($userLogin)
     {
         ViewDataTableManager::clearUserViewDataTableParameters($userLogin);
-    }
-
-    public function addViewDataTable(&$viewDataTable)
-    {
-        // Both are the same HtmlTable, just the Pivot one has some extra logic in case Pivot is used. 
-        // We don't want to use the same HtmlTable twice in the UI. Therefore we always need to remove one.
-        if (Common::getRequestVar('pivotBy', '')) {
-            $tableToRemove = 'Visualizations\HtmlTable';
-        } else {
-            $tableToRemove = 'HtmlTable\PivotBy';
-        }
-
-        foreach ($viewDataTable as $index => $table) {
-            if (Common::stringEndsWith($table, $tableToRemove)) {
-                unset($viewDataTable[$index]);
-            }
-        }
     }
 
     public function getStylesheetFiles(&$stylesheets)

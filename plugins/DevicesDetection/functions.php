@@ -72,7 +72,7 @@ function getBrowserName($label)
  *
  * First try to find a logo for the given short code
  * If none can be found try to find a logo for the browser family
- * Return unkown logo otherwise
+ * Return unknown logo otherwise
  *
  * @param string  $short  Shortcode or name of browser
  *
@@ -127,7 +127,7 @@ function getDeviceTypeLabel($label)
         'desktop'       => 'General_Desktop',
         'smartphone'    => 'DevicesDetection_Smartphone',
         'tablet'        => 'DevicesDetection_Tablet',
-        'phablet'        => 'DevicesDetection_Phablet',
+        'phablet'       => 'DevicesDetection_Phablet',
         'feature phone' => 'DevicesDetection_FeaturePhone',
         'console'       => 'DevicesDetection_Console',
         'tv'            => 'DevicesDetection_TV',

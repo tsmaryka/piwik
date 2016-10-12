@@ -10,6 +10,7 @@ namespace Piwik\Plugins\CoreHome\Tracker;
 
 use Piwik\Common;
 use Piwik\Date;
+use Piwik\Config;
 use Piwik\EventDispatcher;
 use Piwik\Exception\UnexpectedWebsiteFoundException;
 use Piwik\Tracker\Cache;
@@ -19,6 +20,7 @@ use Piwik\Tracker\Settings;
 use Piwik\Tracker\Visit\VisitProperties;
 use Piwik\Tracker\VisitExcluded;
 use Piwik\Tracker\VisitorRecognizer;
+use Piwik\Plugins\PrivacyManager\Config as PrivacyManagerConfig;
 
 /**
  * Encapsulates core tracking logic related to visits.
@@ -91,8 +93,15 @@ class VisitRequestProcessor extends RequestProcessor
             return true;
         }
 
+        $privacyConfig = new PrivacyManagerConfig();
+
+        $ip = $request->getIpString();
+        if ($privacyConfig->useAnonymizedIpForVisitEnrichment) {
+            $ip = $visitProperties->getProperty('location_ip');
+        }
+
         // visitor recognition
-        $visitorId = $this->userSettings->getConfigId($request, $visitProperties->getProperty('location_ip'));
+        $visitorId = $this->userSettings->getConfigId($request, $ip);
         $request->setMetadata('CoreHome', 'visitorId', $visitorId);
 
         $isKnown = $this->visitorRecognizer->findKnownVisitor($visitorId, $visitProperties, $request);
@@ -146,7 +155,9 @@ class VisitRequestProcessor extends RequestProcessor
         }
 
         $wasLastActionYesterday = $this->wasLastActionNotToday($visitProperties, $request);
-        if ($wasLastActionYesterday) {
+        $forceNewVisitAtMidnight = (bool) Config::getInstance()->Tracker['create_new_visit_after_midnight'];
+
+        if ($wasLastActionYesterday && $forceNewVisitAtMidnight) {
             Common::printDebug("Visitor detected, but last action was yesterday...");
 
             return true;

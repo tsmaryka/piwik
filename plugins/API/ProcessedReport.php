@@ -339,6 +339,17 @@ class ProcessedReport
         return $actualReports; // make sure array has contiguous key values
     }
 
+    private static $translatedOrderOfReports = null;
+
+    /**
+     * Resets translated reports.
+     * FOR TESTING ONLY
+     */
+    public static function reset()
+    {
+        self::$translatedOrderOfReports = null;
+    }
+
     /**
      * API metadata are sorted by category/name,
      * with a little tweak to replicate the standard Piwik category ordering
@@ -349,32 +360,55 @@ class ProcessedReport
      */
     private static function sortReports($a, $b)
     {
-        static $order = null;
-        if (is_null($order)) {
-            $order = array();
+        if (is_null(self::$translatedOrderOfReports)) {
+            self::$translatedOrderOfReports = array();
             foreach (Report::$orderOfReports as $category) {
-                $order[] = Piwik::translate($category);
+                self::$translatedOrderOfReports[] = Piwik::translate($category);
             }
         }
-        return ($category = strcmp(array_search($a['category'], $order), array_search($b['category'], $order))) == 0
-            ? (@$a['order'] < @$b['order'] ? -1 : 1)
-            : $category;
+
+        $posA = array_search($a['category'], self::$translatedOrderOfReports);
+        $posB = array_search($b['category'], self::$translatedOrderOfReports);
+
+        if ($posA === false && $posB === false) {
+            return strcmp($a['category'], $b['category']);
+        } elseif ($posA === false) {
+            return 1;
+        } elseif ($posB === false) {
+            return -1;
+        }
+
+        $category = strcmp($posA, $posB);
+
+        if ($category == 0) {
+            return (@$a['order'] < @$b['order'] ? -1 : 1);
+        }
+
+        return $category;
     }
 
     public function getProcessedReport($idSite, $period, $date, $apiModule, $apiAction, $segment = false,
                                        $apiParameters = false, $idGoal = false, $language = false,
                                        $showTimer = true, $hideMetricsDoc = false, $idSubtable = false, $showRawMetrics = false,
-                                       $formatMetrics = null)
+                                       $formatMetrics = null, $idDimension = false)
     {
         $timer = new Timer();
         if (empty($apiParameters)) {
             $apiParameters = array();
         }
+
         if (!empty($idGoal)
             && empty($apiParameters['idGoal'])
         ) {
             $apiParameters['idGoal'] = $idGoal;
         }
+
+        if (!empty($idDimension)
+            && empty($apiParameters['idDimension'])
+        ) {
+            $apiParameters['idDimension'] = (int) $idDimension;
+        }
+
         // Is this report found in the Metadata available reports?
         $reportMetadata = $this->getMetadata($idSite, $apiModule, $apiAction, $apiParameters, $language,
             $period, $date, $hideMetricsDoc, $showSubtableReports = true);

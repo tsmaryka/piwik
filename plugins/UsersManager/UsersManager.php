@@ -21,12 +21,11 @@ use Piwik\SettingsPiwik;
 class UsersManager extends \Piwik\Plugin
 {
     const PASSWORD_MIN_LENGTH = 6;
-    const PASSWORD_MAX_LENGTH = 80;
 
     /**
-     * @see Piwik\Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         return array(
             'AssetManager.getJavaScriptFiles'        => 'getJsFiles',
@@ -94,6 +93,7 @@ class UsersManager extends \Piwik\Plugin
     {
         $jsFiles[] = "plugins/UsersManager/javascripts/usersManager.js";
         $jsFiles[] = "plugins/UsersManager/javascripts/usersSettings.js";
+        $jsFiles[] = "plugins/UsersManager/javascripts/giveViewAccess.js";
     }
 
     /**
@@ -120,7 +120,7 @@ class UsersManager extends \Piwik\Plugin
 
         $l = strlen($input);
 
-        return $l >= self::PASSWORD_MIN_LENGTH && $l <= self::PASSWORD_MAX_LENGTH;
+        return $l >= self::PASSWORD_MIN_LENGTH;
     }
 
     public static function checkPassword($password)
@@ -144,8 +144,8 @@ class UsersManager extends \Piwik\Plugin
         Piwik::postEvent('UsersManager.checkPassword', array($password));
 
         if (!self::isValidPasswordString($password)) {
-            throw new Exception(Piwik::translate('UsersManager_ExceptionInvalidPassword', array(self::PASSWORD_MIN_LENGTH,
-                self::PASSWORD_MAX_LENGTH)));
+            throw new Exception(Piwik::translate('UsersManager_ExceptionInvalidPassword', array(self::PASSWORD_MIN_LENGTH
+            )));
         }
     }
 
@@ -154,6 +154,20 @@ class UsersManager extends \Piwik\Plugin
         // if change here, should also edit the installation process
         // to change how the root pwd is saved in the config file
         return md5($password);
+    }
+
+    /**
+     * Checks the password hash length. Used as a sanity check.
+     *
+     * @param string $passwordHash The password hash to check.
+     * @param string $exceptionMessage Message of the exception thrown.
+     * @throws Exception if the password hash length is incorrect.
+     */
+    public static function checkPasswordHash($passwordHash, $exceptionMessage)
+    {
+        if (strlen($passwordHash) != 32) {  // MD5 hash length
+            throw new Exception($exceptionMessage);
+        }
     }
 
     public function getClientSideTranslationKeys(&$translationKeys)
@@ -165,5 +179,7 @@ class UsersManager extends \Piwik\Plugin
         $translationKeys[] = "UsersManager_ConfirmGrantSuperUserAccess";
         $translationKeys[] = "UsersManager_ConfirmProhibitOtherUsersSuperUserAccess";
         $translationKeys[] = "UsersManager_ConfirmProhibitMySuperUserAccess";
+        $translationKeys[] = "UsersManager_ExceptionUserHasViewAccessAlready";
+        $translationKeys[] = "UsersManager_ExceptionNoValueForUsernameOrEmail";
     }
 }

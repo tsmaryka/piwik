@@ -1,15 +1,104 @@
 # Piwik Platform Changelog
 
-This is a changelog for Piwik platform developers. All changes for our HTTP API's, Plugins, Themes, etc will be listed here.
+This is the Developer Changelog for Piwik platform developers. All changes in our HTTP API's, Plugins, Themes, SDKs, etc. are listed below.
 
-## Piwik 2.15.0
+The Product Changelog at **[piwik.org/changelog](http://piwik.org/changelog)** lets you see more details about any Piwik release, such as the list of new guides and FAQs, security fixes, and links to all closed issues. 
+
+## Piwik 2.16.2
+
+### New APIs
+ * Multiple JavaScript trackers can now be created easily via `_paq.push(['addTracker', piwikUrl, piwikSiteId])`. All tracking requests will be then sent to all added Piwik trackers. [Learn more.](http://developer.piwik.org/guides/tracking-javascript-guide#multiple-piwik-trackers)
+ * It is possible to get an asynchronously created tracker instance (`addTracker`) via the method `Piwik.getAsyncTracker(optionalPiwikUrl, optionalPiwikSiteId)`. This allows you to get the tracker instance and to send different tracking requests to this Piwik instance and to configure it differently than other tracker instances.
+ * Added a new API method `Goals.getGoal($idSite, $idGoal)` to fetch a single goal.
+ 
+### Internal change
+ * Piwik is now compatible with PHP7. 
+ * `piwik.js`, if you call the method `setDomains` note that that the behavior has slightly changed. The current page domain (hostname) will now be added automatically if none of the given host alias passed as a parameter to `setDomains` contain a path and if no host alias is already given for the current host alias. 
+ Say you are on "example.org" and set `hostAlias = ['example.com', 'example.org/test']` then the current "example.org" domain will not be added as there is already a more restrictive hostAlias 'example.org/test' given. 
+ We also do not add the current page domain (hostname) automatically if there was any other host specifying any path such as `['example.com', 'example2.com/test']`. 
+ In this case we also do not add the current page domain "example.org" automatically as the "path" feature is used. As soon as someone uses the path feature, for Piwik JS Tracker to work correctly in all cases, one needs to specify all hosts manually. [Learn more.](http://developer.piwik.org/guides/tracking-javascript-guide#measuring-domains-andor-sub-domains)
+ * `piwik.js`: after an ecommerce order is tracked using `trackEcommerceOrder`, the items in the cart will now be removed from the JavaScript object. Calling `trackEcommerceCartUpdate` will not remove the items in the cart.   
+
+## Piwik 2.16.1
+
+### New features
+ * New method `setIsWritableByCurrentUser` for `SystemSetting` to change the writable permission for certain system settings via DI.
+ * JS Tracker: `setDomains` function now supports page wildcards matching eg. `example.com/index*` which can be useful when [tracking a group of pages within a domain in a separate website in Piwik](http://developer.piwik.org/guides/tracking-javascript-guide#tracking-a-group-of-pages-in-a-separate-website)
+ * To customise the list of URL query parameters to be removed from your URLs, you can now define and overwrite  `url_query_parameter_to_exclude_from_url` INI setting in your `config.ini.php` file. By default, the following query string parameters will be removed: `gclid, fb_xd_fragment, fb_comment_id, phpsessid, jsessionid, sessionid, aspsessionid, doing_wp_cron, sid`.
+
+### Deprecations
+* The following PHP functions have been deprecated and will be removed in Piwik 3.0:
+ * `SettingsServer::isApache()` 
+
+### New guides
+  * JavaScript Tracker: [Measuring domains and/or sub-domains](http://developer.piwik.org/guides/tracking-javascript-guide#measuring-domains-andor-sub-domains)
+  
+### Breaking Changes
+ * Reporting API: when a cell value in a CSV or TSV (excel) data export starts with a character `=`, `-` or `+`, Piwik will now prefix the value with `'` to ensure that it is displayed correctly in Excel or OpenOffice/LibreOffice.   
+ 
+### Internal change
+ * Tracking API: by default, when tracking a Page URL, Piwik will now remove the URL query string parameter `sid` if it is found. 
+ * In the JavaScript tracker, the function `setDomains` will not anymore attempt to set a cookie path. Learn more about [configuring the tracker correctly](http://developer.piwik.org/guides/tracking-javascript-guide#tracking-one-domain) when tracking one or several domains and/or paths.
+
+## Piwik 2.16.0
+
+### New features
+ * New segment `actionType` lets you segment all actions of a given type, eg. `actionType==events` or `actionType==downloads`. Action types values are: `pageviews`, `contents`, `sitesearches`, `events`, `outlinks`, `downloads`
+ * New segment `actionUrl` lets you segment any action that matches a given URL, whether they are Pageviews, Site searches, Contents, Downloads or Events.
+ * New segment `deviceBrand` lets you restrict your users to those using a particular device brand such as Apple, Samsung, LG, Google, Nokia, Sony, Lenovo, Alcatel, etc. View the [complete list of device brands.](http://developer.piwik.org/api-reference/segmentation)
+ * New segment operators `=^` "Starts with" and `=$` "Ends with" complement the existing segment operators: Contains, Does not contain, Equals, Not equals, Greater than or equal to, Less than or equal to.
+ * The JavaScript Tracker method `PiwikTracker.setDomains()` can now handle paths. This means when setting eg `_paq.push(['setDomains, '*.piwik.org/website1'])` all link that goes to the same domain `piwik.org` but to any other path than `website1/*` will be treated as outlink.
+ * In Administration > Websites, for each website, there is a checkbox "Only track visits and actions when the action URL starts with one of the above URLs". In Piwik 2.14.0, any action URL starting with one of the Alias URLs or starting with a subdomain of the Alias URL would be tracked. As of Piwik 2.15.0, when this checkbox is enabled, it may track less data: action URLs on an Alias URL subdomain will not be tracked anymore (you must specify each sub-domain as Alias URL).  
+ * It is now possible to pass an option `php-cli-options` to the `core:archive` command. The given cli options will be forwarded to the actual PHP command. This allows to for example specifiy a different memory limit for the archiving process like this: `./console core:archive --php-cli-options="-d memory_limit=8G"`
+ * New less variable `@theme-color-menu-contrast-textSelected` that lets you specify the color of a selected menu item.
+ * in Administration > Diagnostics, there is a new page `Config file` which lets Super User view all config values from `global.ini.php` in the UI, and whether they were overriden in your `config/config.ini.php`
+
+### New commands
+ * New command `config:set` lets you set INI config options from the command line. This command can be used for convenience or for automation.
+   
+### Internal changes
+ * `UsersManager.*` API calls: when an API request specifies a `token_auth` of a user with `admin` permission, the returned dataset will not include all usernames as previously, API will now only return usernames for users with `view` or `admin` permission to website(s) viewable by this `token_auth`. 
+ * When generating a new plugin skeleton via `generate:plugin` command, plugin name must now contain only letters and numbers.
+ * JavaScript Tracker tests no longer require `SQLite`. The existing MySQL configuration for tests is used now. In order to run the tests make sure Piwik is installed and `[database_tests]` is configured in `config/config.ini.php`.
+ * The definitions for search engine and social network detection have been moved from bundled data files to a separate package (see [https://github.com/piwik/searchengine-and-social-list](https://github.com/piwik/searchengine-and-social-list)).
+ * In [UI screenshot tests](https://developer.piwik.org/guides/tests-ui), a test environment `configOverride` setting should be no longer overwritten. Instead new values should be added to the existing `configOverride` array in PHP or JavaScript. For example instead of `testEnvironment.configOverride = {group: {name: 1}}` use `testEnvironment.overrideConfig('group', 'name', '1')`.
+
+### New APIs
+ * Add your own SMS/Text provider by creating a new class in the `SMSProvider` directory of your plugin. The class has to extend `Piwik\Plugins\MobileMessaging\SMSProvider` and implement the required methods.
+ * Segments can now be composed by a union of multiple segments. To do this set an array of segments that shall be used for that segment `$segment->setUnionOfSegments(array('outlinkUrl', 'downloadUrl'))` instead of defining a SQL column.
+
+### Deprecations
+ * The method `DB::tableExists` was un-used and has been removed.
+
+
+## Piwik 2.15.0 
+
+### New commands
+ *  New command `diagnostics:analyze-archive-table` that analyzes archive tables
+ *  New command `database:optimize-archive-tables` to optimize archive tables and possibly save disk space (even if on InnoDB)
+ *  New Command `core:invalidate-report-data` to invalidate archive data (w/ period cascading) ([FAQ](https://piwik.org/faq/how-to/faq_155/))
+
+### New APIs and features
+* Piwik 2.15.0 is now mostly compatible with PHP7. 
+* The JavaScript Tracker `piwik.js` got a new method `logAllContentBlocksOnPage` to log all found content blocks within a page to the console. This is useful to debug / test content tracking. It can be triggered via `_paq.push(['logAllContentBlocksOnPage'])`
+* The Class `Piwik\Plugins\Login\Controller` is now considered a public API.
+* The new method `Piwik\Menu\MenuAbstract::registerMenuIcon()` can be used to define an icon for a menu category to replace the default arrow icon.
+* New event `CronArchive.getIdSitesNotUsingTracker` that allows you to set a list of idSites that do not use the Tracker API to make sure we archive these sites if needed.
+* New events `CronArchive.init.start` which is triggered when the CLI archiver starts and `CronArchive.end` when the archiver ended.
+* Piwik tracker can now be configured with strict Content Security Policy ([CSP FAQ](https://piwik.org/faq/general/faq_20904/)).
+* Super Users can choose whether to use the latest stable release or latest Long Term Support release. 
 
 ### Breaking Changes
 * The method `Dimension::getId()` has been set as `final`. It is not allowed to overwrite this method.
 * We fixed a bug where the API method `Sites.getPatternMatchSites` only returned a very limited number of websites by default. We now return all websites by default unless a limit is specified specifically.
+* Handling of localized date, time and range formats has been changed. Patterns no longer contain placeholders like %shortDay%, but work with CLDR pattern instead. You can use one of the predefined format constants in Date class for using getLocalized().
+* As we are now using CLDR formats for all languages, some time formats were even changed in english. Attributes like prettyDate in API responses might so have been changed slightly.
+* The config `enable_measure_piwik_usage_in_idsite` which is used to track the Piwik usage with Piwik was removed and replaced by a new plugin `AnonymousPiwikUsageMeasurement`
 
 ### Deprecations
-
+* The following HTTP API methods have been deprecated and will be removed in Piwik 3.0:
+ * `SitesManager.getSitesIdWithVisits` 
+ * `API.getLastDate` 
 * The following events have been deprecated and will be removed in Piwik 3.0. Use [dimensions](http://developer.piwik.org/guides/dimensions) instead.
  * `Tracker.existingVisitInformation`
  * `Tracker.getVisitFieldsToPersist`
@@ -18,9 +107,17 @@ This is a changelog for Piwik platform developers. All changes for our HTTP API'
  * `Tracker.recordAction`
  * `Tracker.recordEcommerceGoal`
  * `Tracker.recordStandardGoals`
+* The Platform API method `\Piwik\Plugin::getListHooksRegistered()` has been deprecated and will be removed in Piwik 3.0. Use `\Piwik\Plugin::registerEvents()` instead.
 
-### Internal Change
+
+### Internal changes
+* When logging in, the username is now case insensitive 
+* URLs with emojis and any other unicode character will be tracked, with special characters replaced with `�`
+* A permanent warning notification is now displayed when PHP is 5.4.* or older, since it has reached End Of Life 
+* In `piwik.js` we replaced [JSON2](https://github.com/douglascrockford/JSON-js) with [JSON3](https://bestiejs.github.io/json3/) to implement CSP (Content Security Policy) as JSON3 does not use `eval()`. JSON3 will be used if a browser does not provide a native JSON API. We are using `JSON3` in a way that it will not conflict if your website is using `JSON3` as well.
 * The option `branch` of the console command `development:sync-system-test-processed` was removed as it is no longer needed.
+* All numbers in reports will now appear formatted (eg. `1,000,000` instead of `1000000`)
+* Database connections now use `UTF-8` charset explicitely to force UTF-8 data handling
 
 ## Piwik 2.14.0
 

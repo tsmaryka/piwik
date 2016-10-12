@@ -461,7 +461,11 @@ class Row implements \ArrayAccess, \IteratorAggregate
 
             $operation = 'sum';
             if (is_array($aggregationOperations) && isset($aggregationOperations[$columnToSumName])) {
-                $operation = strtolower($aggregationOperations[$columnToSumName]);
+                if (is_string($aggregationOperations[$columnToSumName])) {
+                    $operation = strtolower($aggregationOperations[$columnToSumName]);
+                } elseif (is_callable($aggregationOperations[$columnToSumName])) {
+                    $operation = $aggregationOperations[$columnToSumName];
+                }
             }
 
             // max_actions is a core metric that is generated in ArchiveProcess_Day. Therefore, it can be
@@ -473,19 +477,19 @@ class Row implements \ArrayAccess, \IteratorAggregate
                 throw new Exception("Unknown aggregation operation for column $columnToSumName.");
             }
 
-            $newValue = $this->getColumnValuesMerged($operation, $thisColumnValue, $columnToSumValue);
+            $newValue = $this->getColumnValuesMerged($operation, $thisColumnValue, $columnToSumValue, $this, $rowToSum);
 
             $this->setColumn($columnToSumName, $newValue);
         }
 
         if ($enableCopyMetadata) {
-            $this->sumRowMetadata($rowToSum);
+            $this->sumRowMetadata($rowToSum, $aggregationOperations);
         }
     }
 
     /**
      */
-    private function getColumnValuesMerged($operation, $thisColumnValue, $columnToSumValue)
+    private function getColumnValuesMerged($operation, $thisColumnValue, $columnToSumValue, $thisRow, $rowToSum)
     {
         switch ($operation) {
             case 'skip':
@@ -506,7 +510,24 @@ class Row implements \ArrayAccess, \IteratorAggregate
             case 'sum':
                 $newValue = $this->sumRowArray($thisColumnValue, $columnToSumValue);
                 break;
+            case 'uniquearraymerge':
+                if (is_array($thisColumnValue) && is_array($columnToSumValue)) {
+                    foreach ($columnToSumValue as $columnSum) {
+                        if (!in_array($columnSum, $thisColumnValue)) {
+                            $thisColumnValue[] = $columnSum;
+                        }
+                    }
+                } elseif (!is_array($thisColumnValue) && is_array($columnToSumValue)) {
+                    $thisColumnValue = $columnToSumValue;
+                }
+
+                $newValue = $thisColumnValue;
+                break;
             default:
+                if (is_callable($operation)) {
+                    return call_user_func($operation, $thisColumnValue, $columnToSumValue, $thisRow, $rowToSum);
+                }
+
                 throw new Exception("Unknown operation '$operation'.");
         }
         return $newValue;
@@ -516,12 +537,29 @@ class Row implements \ArrayAccess, \IteratorAggregate
      * Sums the metadata in `$rowToSum` with the metadata in `$this` row.
      *
      * @param Row $rowToSum
+     * @param array $aggregationOperations
      */
-    public function sumRowMetadata($rowToSum)
+    public function sumRowMetadata($rowToSum, $aggregationOperations = array())
     {
         if (!empty($rowToSum->metadata)
             && !$this->isSummaryRow()
         ) {
+            $aggregatedMetadata = array();
+
+            if (is_array($aggregationOperations)) {
+                // we need to aggregate value before value is overwritten by maybe another row
+                foreach ($aggregationOperations as $columnn => $operation) {
+                    $thisMetadata = $this->getMetadata($columnn);
+                    $sumMetadata  = $rowToSum->getMetadata($columnn);
+
+                    if ($thisMetadata === false && $sumMetadata === false) {
+                        continue;
+                    }
+
+                    $aggregatedMetadata[$columnn] = $this->getColumnValuesMerged($operation, $thisMetadata, $sumMetadata, $this, $rowToSum);
+                }
+            }
+
             // We shall update metadata, and keep the metadata with the _most visits or pageviews_, rather than first or last seen
             $visits = max($rowToSum->getColumn(Metrics::INDEX_PAGE_NB_HITS) || $rowToSum->getColumn(Metrics::INDEX_NB_VISITS),
                 // Old format pre-1.2, @see also method doSumVisitsMetrics()
@@ -531,6 +569,11 @@ class Row implements \ArrayAccess, \IteratorAggregate
             ) {
                 $this->maxVisitsSummed = $visits;
                 $this->metadata = $rowToSum->metadata;
+            }
+
+            foreach ($aggregatedMetadata as $column => $value) {
+                // we need to make sure aggregated value is used, and not metadata from $rowToSum
+                $this->setMetadata($column, $value);
             }
         }
     }

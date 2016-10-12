@@ -43,14 +43,14 @@ use Piwik\Plugins\CoreAdminHome\CustomLogo;
  *         $_GET['changeVisitAlpha'] = false;
  *         $_GET['removeOldVisits'] = false;
  *         $_GET['showFooterMessage'] = false;
- *         $realtimeMap = FrontController::getInstance()->fetchDispatch('UserCountryMap', 'realtimeMap');
+ *         $realtimeMap = FrontController::getInstance()->dispatch('UserCountryMap', 'realtimeMap');
  *
  *         $view = new View('@MyPlugin/myPopupWithRealtimeMap.twig');
  *         $view->realtimeMap = $realtimeMap;
  *         return $realtimeMap->render();
  *     }
  *
- * For a detailed explanation, see the documentation [here](http://piwik.org/docs/plugins/framework-overview).
+ * For a detailed explanation, see the documentation [here](https://developer.piwik.org/guides/how-piwik-works).
  *
  * @method static \Piwik\FrontController getInstance()
  */
@@ -64,6 +64,33 @@ class FrontController extends Singleton
      * @var bool
      */
     public static $enableDispatch = true;
+
+    /**
+     * @var bool
+     */
+    private $initialized = false;
+
+    /**
+     * @param $lastError
+     * @return mixed|void
+     * @throws AuthenticationFailedException
+     * @throws Exception
+     */
+    private static function generateSafeModeOutput($lastError)
+    {
+        Common::sendResponseCode(500);
+
+        $controller = FrontController::getInstance();
+        try {
+            $controller->init();
+            $message = $controller->dispatch('CorePluginsAdmin', 'safemode', array($lastError));
+        } catch(Exception $e) {
+            // may fail in safe mode (eg. global.ini.php not found)
+            $message = sprintf("Piwik encoutered an error: %s (which lead to: %s)", $lastError['message'], $e->getMessage());
+        }
+
+        return $message;
+    }
 
     /**
      * Executes the requested plugin controller method.
@@ -174,12 +201,7 @@ class FrontController extends Singleton
     {
         $lastError = error_get_last();
         if (!empty($lastError) && $lastError['type'] == E_ERROR) {
-            Common::sendResponseCode(500);
-
-            $controller = FrontController::getInstance();
-            $controller->init();
-            $message = $controller->dispatch('CorePluginsAdmin', 'safemode', array($lastError));
-
+            $message = self::generateSafeModeOutput($lastError);
             echo $message;
         }
     }
@@ -197,11 +219,11 @@ class FrontController extends Singleton
      */
     public function init()
     {
-        static $initialized = false;
-        if ($initialized) {
+        if ($this->initialized) {
             return;
         }
-        $initialized = true;
+
+        $this->initialized = true;
 
         $tmpPath = StaticContainer::get('path.tmp');
 
@@ -390,7 +412,7 @@ class FrontController extends Singleton
         } catch (Exception $ex) {
         }
         $logoUrl = $logoUrl ?: 'plugins/Morpheus/images/logo-header.png';
-        $faviconUrl = $faviconUrl ?: 'plugins/CoreHome/images/favicon.ico';
+        $faviconUrl = $faviconUrl ?: 'plugins/CoreHome/images/favicon.png';
 
         $page = file_get_contents(PIWIK_INCLUDE_PATH . '/plugins/Morpheus/templates/maintenance.tpl');
         $page = str_replace('%logoUrl%', $logoUrl, $page);
@@ -411,10 +433,6 @@ class FrontController extends Singleton
             return;
         }
         if (Common::isPhpCliMode()) {
-            return;
-        }
-        // Only enable this feature after Piwik is already installed
-        if (!SettingsPiwik::isPiwikInstalled()) {
             return;
         }
         // proceed only when force_ssl = 1

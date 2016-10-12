@@ -55,7 +55,7 @@ class ExcludeLowPopulation extends BaseFilter
      *                                   `$minimumPercentageThreshold` is used.
      * @param bool|float $minimumPercentageThreshold If supplied, column values must be a greater
      *                                               percentage of the sum of all column values than
-     *                                               this precentage.
+     *                                               this percentage.
      */
     public function __construct($table, $columnToFilter, $minimumValue, $minimumPercentageThreshold = false)
     {
@@ -87,6 +87,9 @@ class ExcludeLowPopulation extends BaseFilter
      */
     public function filter($table)
     {
+        if(empty($this->columnToFilter)) {
+            return;
+        }
         $minimumValue = $this->minimumValue;
         $isValueLowPopulation = function ($value) use ($minimumValue) {
             return $value < $minimumValue;

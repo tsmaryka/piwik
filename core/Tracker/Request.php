@@ -83,6 +83,13 @@ class Request
                 $this->params['url'] = $url;
             }
         }
+
+        // check for 4byte utf8 characters in url and replace them with �
+        // @TODO Remove as soon as our database tables use utf8mb4 instead of utf8
+        if (array_key_exists('url', $this->params) && preg_match('/[\x{10000}-\x{10FFFF}]/u', $this->params['url'])) {
+            Common::printDebug("Unsupport character detected. Replacing with \xEF\xBF\xBD");
+            $this->params['url'] = preg_replace('/[\x{10000}-\x{10FFFF}]/u', "\xEF\xBF\xBD", $this->params['url']);
+        }
     }
 
     /**
@@ -281,6 +288,15 @@ class Request
             'i' => (string)Common::getRequestVar('m', $this->getCurrentDate("i"), 'int', $this->params),
             's' => (string)Common::getRequestVar('s', $this->getCurrentDate("s"), 'int', $this->params)
         );
+        if($localTimes['h'] < 0 || $localTimes['h'] > 23) {
+            $localTimes['h'] = 0;
+        }
+        if($localTimes['i'] < 0 || $localTimes['i'] > 59) {
+            $localTimes['i'] = 0;
+        }
+        if($localTimes['s'] < 0 || $localTimes['s'] > 59) {
+            $localTimes['s'] = 0;
+        }
         foreach ($localTimes as $k => $time) {
             if (strlen($time) == 1) {
                 $localTimes[$k] = '0' . $time;
@@ -385,6 +401,16 @@ class Request
         }
 
         return $this->paramsCache[$name];
+    }
+
+    public function setParam($name, $value)
+    {
+        $this->params[$name] = $value;
+        unset($this->paramsCache[$name]);
+
+        if ($name === 'cdt') {
+            $this->cdtCache = null;
+        }
     }
 
     private function hasParam($name)
@@ -540,7 +566,7 @@ class Request
         }
 
         $customVariables = array();
-        $maxCustomVars   = CustomVariables::getMaxCustomVariables();
+        $maxCustomVars   = CustomVariables::getNumUsableCustomVariables();
 
         foreach ($customVar as $id => $keyValue) {
             $id = (int)$id;

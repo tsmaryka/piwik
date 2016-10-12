@@ -35,12 +35,15 @@ use Piwik\Tracker\Visit\VisitProperties;
  * When Piwik handles a single tracking request, it gathers all available RequestProcessors and
  * invokes their methods in sequence.
  *
- * The first method called is {@link self::processRequestParams()}. RequestProcessors should use
+ * The first method called is {@link self::manipulateRequest()}. By default this is a no-op, but
+ * RequestProcessors can use it to manipulate tracker requests before they are processed.
+ *
+ * The second method called is {@link self::processRequestParams()}. RequestProcessors should use
  * this method to compute request metadata and set visit properties using the tracking request.
  * An example includes the ActionRequestProcessor, which uses this method to determine the action
  * being tracked.
  *
- * The second method called is {@link self::afterRequestProcessed()}. RequestProcessors should
+ * The third method called is {@link self::afterRequestProcessed()}. RequestProcessors should
  * use this method to either compute request metadata/visit properties using other plugins'
  * request metadata, OR override other plugins' request metadata to tweak tracker behavior.
  * An example of the former can be seen in the GoalsRequestProcessor which uses the action
@@ -48,7 +51,7 @@ use Piwik\Tracker\Visit\VisitProperties;
  * conversions. An example of the latter can be seen in the PingRequestProcessor, which on
  * ping requests, aborts conversion recording and new visit recording.
  *
- * After these two methods are called, either {@link self::onNewVisit()} or {@link self::onExistingVisit()}
+ * After these methods are called, either {@link self::onNewVisit()} or {@link self::onExistingVisit()}
  * is called. Generally, plugins should favor defining Dimension classes instead of using these methods,
  * however sometimes it is not possible (as is the case with the CustomVariables plugin).
  *
@@ -65,14 +68,7 @@ use Piwik\Tracker\Visit\VisitProperties;
  * a {@link Dimension} class._
  *
  * To create a new RequestProcessor, create a new class that derives from this one, and implement the
- * methods you need. Then in your plugin's DI config file (located at
- * `/path/to/piwik/plugins/YourPlugin/config/config.php`), add the following to the array:
- *
- * ```
- *     'tracker.request.processors' => DI\add(array(
- *         DI\get('Piwik\Plugins\Goals\Tracker\GoalsRequestProcessor'),
- *     )),
- * ```
+ * methods you need. Then put this class inside the `Tracker` directory of your plugin.
  *
  * Final note: RequestProcessors are shared between tracking requests, and so, should ideally be
  * stateless. They are stored in DI, so they can contain references to other objects in DI, but
@@ -82,6 +78,19 @@ abstract class RequestProcessor
 {
     /**
      * This is the first method called when processing a tracker request.
+     *
+     * Derived classes can use this method to manipulate a tracker request before the request
+     * is handled. Plugins could change the URL, add custom variables, etc.
+     *
+     * @param Request $request
+     */
+    public function manipulateRequest(Request $request)
+    {
+        // empty
+    }
+
+    /**
+     * This is the second method called when processing a tracker request.
      *
      * Derived classes should use this method to set request metadata based on the tracking
      * request alone. They should not try to access request metadata from other plugins,
@@ -99,7 +108,7 @@ abstract class RequestProcessor
     }
 
     /**
-     * This is the second method called when processing a tracker request.
+     * This is the third method called when processing a tracker request.
      *
      * Derived classes should use this method to set request metadata that needs request metadata
      * from other plugins, or to override request metadata from other plugins to change

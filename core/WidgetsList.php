@@ -71,8 +71,7 @@ class WidgetsList extends Singleton
         }
 
         self::addWidgets();
-
-        uksort(self::$widgets, array('Piwik\WidgetsList', '_sortWidgetCategories'));
+        self::sortWidgets();
 
         $widgets = array();
         foreach (self::$widgets as $key => $v) {
@@ -89,6 +88,11 @@ class WidgetsList extends Singleton
         self::$listCacheToBeInvalidated = false;
 
         return $widgets;
+    }
+
+    private static function sortWidgets()
+    {
+        uksort(self::$widgets, array('Piwik\WidgetsList', '_sortWidgetCategories'));
     }
 
     private static function addWidgets()
@@ -147,7 +151,7 @@ class WidgetsList extends Singleton
             'Goals_Goals',
             'Goals_Ecommerce',
             '_others_',
-            'Example Widgets',
+            'About Piwik',
             'ExamplePlugin_exampleWidgets',
         );
 

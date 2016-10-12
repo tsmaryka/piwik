@@ -9,13 +9,11 @@
 namespace Piwik\Plugins\Installation;
 
 use Piwik\API\Request;
-use Piwik\API\ResponseBuilder;
 use Piwik\Common;
 use Piwik\Config;
 use Piwik\FrontController;
 use Piwik\Piwik;
 use Piwik\Plugins\Installation\Exception\DatabaseConnectionFailedException;
-use Piwik\Translate;
 use Piwik\View as PiwikView;
 
 /**
@@ -26,9 +24,9 @@ class Installation extends \Piwik\Plugin
     protected $installationControllerName = '\\Piwik\\Plugins\\Installation\\Controller';
 
     /**
-     * @see Piwik\Plugin::getListHooksRegistered
+     * @see Piwik\Plugin::registerEvents
      */
-    public function getListHooksRegistered()
+    public function registerEvents()
     {
         $hooks = array(
             'Config.NoConfigurationFile'      => 'dispatch',
@@ -107,7 +105,7 @@ class Installation extends \Piwik\Plugin
         if ($this->isAllowedAction($action)) {
             echo FrontController::getInstance()->dispatch('Installation', $action, array($message));
         } else {
-            Piwik::exitWithErrorMessage(Piwik::translate('Installation_NoConfigFound'));
+            Piwik::exitWithErrorMessage($this->getMessageToInviteUserToInstallPiwik($message));
         }
 
         exit;
@@ -128,5 +126,23 @@ class Installation extends \Piwik\Plugin
 
         return in_array($action, array_keys($controller->getInstallationSteps()))
                 || $isActionWhiteListed;
+    }
+
+    /**
+     * @param $message
+     * @return string
+     */
+    private function getMessageToInviteUserToInstallPiwik($message)
+    {
+        $messageWhenPiwikSeemsNotInstalled =
+            $message .
+            "\n<br/>" .
+            Piwik::translate('Installation_NoConfigFileFound') .
+            "<br/><b>» " .
+            Piwik::translate('Installation_YouMayInstallPiwikNow', array("<a href='index.php'>", "</a></b>")) .
+            "<br/><small>" .
+            Piwik::translate('Installation_IfPiwikInstalledBeforeTablesCanBeKept') .
+            "</small>";
+        return $messageWhenPiwikSeemsNotInstalled;
     }
 }
