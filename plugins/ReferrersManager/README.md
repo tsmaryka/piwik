@@ -1,6 +1,6 @@
 # Piwik Referrers Manager Plugin
 
-[![Build Status](https://travis-ci.org/sgiehl/piwik-plugin-ReferrersManager.png?branch=master)](https://travis-ci.org/sgiehl/piwik-plugin-ReferrersManager) [![Coverage Status](https://coveralls.io/repos/sgiehl/piwik-plugin-ReferrersManager/badge.png?branch=coveralls)](https://coveralls.io/r/sgiehl/piwik-plugin-ReferrersManager?branch=coveralls) [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=sgiehl&url=https://github.com/sgiehl/piwik-plugin-ReferrersManager&title=Piwik Plugin Referrers Manager&language=&tags=github&category=software) 
+[![Build Status](https://travis-ci.org/sgiehl/piwik-plugin-ReferrersManager.png?branch=master)](https://travis-ci.org/sgiehl/piwik-plugin-ReferrersManager) [![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=sgiehl&url=https://github.com/sgiehl/piwik-plugin-ReferrersManager&title=Piwik Plugin Referrers Manager&language=&tags=github&category=software) 
 
 
 ## Description
@@ -18,12 +18,6 @@ Note: You can find the configuration panel for this plugin within the global adm
 - Abillity to manage custom search engines and social networks
 - Abillity to disable/enable Piwik's default social network list
 
-## Changelog
-
-- 1.2 Compatibility fix for PHP < 5.4
-- 1.1 Minor Changes
-- 1.0 Initial release
-
 ## Support
 
 Please direct any feedback to [stefan@piwik.org](mailto:stefan@piwik.org)
@@ -31,8 +25,4 @@ Please direct any feedback to [stefan@piwik.org](mailto:stefan@piwik.org)
 ## Contribute
 
 Feel free to create issues and pull requests.
-
-## License
-
-GPLv3 or later
 

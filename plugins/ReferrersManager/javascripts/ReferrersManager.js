@@ -2,6 +2,12 @@ $(document).ready(function () {
 
     $('#tabs').tabs();
 
+    $('#urlToCheck').on('change', function(){
+        $('.detectionresult .engine').text('');
+        $('.detectionresult .keywords').text('');
+        $('.detectionresult img').attr('src', 'plugins/Referrers/images/searchEngines/xx.png');
+    });
+
     $('#checkurl').bind('click', function(){
         var ajaxHandler = new ajaxHelper();
         ajaxHandler.addParams({
@@ -83,6 +89,20 @@ $(document).ready(function () {
         }});
     });
 
+    $('[role="refreshSocials"]').click(function(){
+        var ajaxHandler = new ajaxHelper();
+        ajaxHandler.addParams({
+            module: 'ReferrersManager',
+            action: 'refresh',
+            type: 'socials'
+        }, 'GET');
+        ajaxHandler.setCallback(function(){
+            location.hash = 'socialTab';
+            piwikHelper.refreshAfter(1);
+        });
+        ajaxHandler.send(true);
+    });
+
     $('[role="noDefaultSocials"]').click(function(){
         var ajaxHandler = new ajaxHelper();
         ajaxHandler.addParams({
@@ -90,7 +110,10 @@ $(document).ready(function () {
             action: 'setDefaultSocialsDisabled',
             state: $(this).attr('state')
         }, 'GET');
-        ajaxHandler.redirectOnSuccess({});
+        ajaxHandler.setCallback(function(){
+            location.hash = 'socialTab';
+            piwikHelper.refreshAfter(1);
+        });
         ajaxHandler.send(true);
     });
 
@@ -141,5 +164,19 @@ $(document).ready(function () {
             });
             ajaxHandler.send(true);
         }});
+    });
+
+    $('[role="refreshSearchEngines"]').click(function(){
+        var ajaxHandler = new ajaxHelper();
+        ajaxHandler.addParams({
+            module: 'ReferrersManager',
+            action: 'refresh',
+            type: 'searchengines'
+        }, 'GET');
+        ajaxHandler.setCallback(function(){
+            location.hash = 'searchengineTab';
+            piwikHelper.refreshAfter(1);
+        });
+        ajaxHandler.send(true);
     });
 });
